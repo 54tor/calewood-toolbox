@@ -44,51 +44,7 @@ Puis exécute avec :
 calewood-toolbox --qb-host box ...
 ```
 
-## Exemples rapides
-
-- Aide :
-  - `calewood-toolbox -h`
-
-- File d’attente / backlog qBittorrent :
-  - `calewood-toolbox --qb-host box --qbit-dl-queue`
-
-- Archivage legacy : éléments disponibles à prendre (`status=uploaded`) :
-  - `calewood-toolbox --calewood-archive-uploaded`
-
-- Prendre les `uploaded` (legacy) et les ajouter à qBittorrent (nécessite `--qb-host`) :
-  - `calewood-toolbox --qb-host box --calewood-archive-take-uploaded-to-qbit --no-dry-run --verbose`
-
-- Planche contact (thumbsheet) à partir d’une vidéo locale :
-  - `calewood-toolbox --thumbsheet ./video.mp4 --thumbsheet-out ./thumbsheet.png`
-
-## Docker
-
-Build:
-
-```bash
-docker build -t calewood-toolbox .
-```
-
-Exécution (exemple) :
-
-```bash
-docker run --rm -it \
-  -e CALEWOOD_BASE_URL="https://calewood.example" \
-  -e CALEWOOD_TOKEN="..." \
-  -e QBIT_INSTANCES_JSON='[{"name":"box","base_url":"http://qb:8080","username":"user","password":"pass"}]' \
-  calewood-toolbox -h
-```
-
-## Anonymisation
-
-- `calewood_qbit_sync/config.py` contient uniquement des placeholders et lit la configuration via l’environnement.
-- Ne commit jamais de secrets dans ce dépôt.
-
-## Licence
-
-GPL-3.0
-
-## Commandes (résumé humain)
+## Commandes
 
 Note : le CLI est en **dry-run par défaut**. Ajoute `--no-dry-run` pour exécuter vraiment.
 
@@ -152,3 +108,47 @@ Note : le CLI est en **dry-run par défaut**. Ajoute `--no-dry-run` pour exécut
 ### Média
 
 - `--thumbsheet VIDEO` : mosaïque 3×3 (10–90%) via ffmpeg.
+
+## Exemples rapides
+
+- Aide :
+  - `calewood-toolbox -h`
+
+- File d’attente / backlog qBittorrent :
+  - `calewood-toolbox --qb-host box --qbit-dl-queue`
+
+- Archivage legacy : éléments disponibles à prendre (`status=uploaded`) :
+  - `calewood-toolbox --calewood-archive-uploaded`
+
+- Prendre les `uploaded` (legacy) et les ajouter à qBittorrent (nécessite `--qb-host`) :
+  - `calewood-toolbox --qb-host box --calewood-archive-take-uploaded-to-qbit --no-dry-run --verbose`
+
+- Planche contact (thumbsheet) à partir d’une vidéo locale :
+  - `calewood-toolbox --thumbsheet ./video.mp4 --thumbsheet-out ./thumbsheet.png`
+
+## Docker
+
+Build :
+
+```bash
+docker build -t calewood-toolbox .
+```
+
+Exécution (exemple) :
+
+```bash
+docker run --rm -it \
+  -e CALEWOOD_BASE_URL="https://calewood.example" \
+  -e CALEWOOD_TOKEN="..." \
+  -e QBIT_INSTANCES_JSON='[{"name":"box","base_url":"http://qb:8080","username":"user","password":"pass"}]' \
+  calewood-toolbox -h
+```
+
+## Anonymisation
+
+- `calewood_qbit_sync/config.py` contient uniquement des placeholders et lit la configuration via l’environnement.
+- Ne commit jamais de secrets dans ce dépôt.
+
+## Licence
+
+GPL-3.0
