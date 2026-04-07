@@ -8,7 +8,14 @@ set -euo pipefail
 #   OPEN=1  (open missing downloads in batches of 10 with 1s pause)
 
 CALEWOOD_TOKEN="${1:?calewood token}"
-CALEWOOD_BASE_URL="${2:?calewood base url (e.g. https://calewood.example)}"
+CALEWOOD_BASE_URL="${2:?calewood base url (e.g. http://calewood.n0flow.io/api)}"
+
+# Normalize: allow passing base with or without trailing /api, but keep a base without it
+# since this script appends /api/... paths.
+CALEWOOD_BASE_URL="${CALEWOOD_BASE_URL%/}"
+if [[ "$CALEWOOD_BASE_URL" == */api ]]; then
+  CALEWOOD_BASE_URL="${CALEWOOD_BASE_URL%/api}"
+fi
 QBIT_BASE_URL="${3:?qbit base url (e.g. http://10.0.0.2)}"
 QBIT_USER="${4:?qbit username}"
 QBIT_PASS="${5:?qbit password}"

@@ -14,7 +14,14 @@ TOKEN="${1:?CALEWOOD_TOKEN}"
 QBIT_BASE="${2:?QBIT_BASE_URL (ex: https://qbittorrent.example)}"
 QBIT_USER="${3:?QBIT_USERNAME}"
 QBIT_PASS="${4:?QBIT_PASSWORD}"
-CALEWOOD_BASE="${5:-https://calewood.example}"
+CALEWOOD_BASE="${5:-http://calewood.n0flow.io/api}"
+
+# Normalize: allow passing base with or without trailing /api, but keep a base without it
+# since the script appends /api/... paths below.
+CALEWOOD_BASE="${CALEWOOD_BASE%/}"
+if [[ "$CALEWOOD_BASE" == */api ]]; then
+  CALEWOOD_BASE="${CALEWOOD_BASE%/api}"
+fi
 
 PER_PAGE=200
 
