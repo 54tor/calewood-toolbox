@@ -13,7 +13,14 @@ class CalewoodClient:
     token: str
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "base_url", self.base_url.rstrip("/"))
+        # Allow configuring CALEWOOD_BASE_URL either as:
+        # - https://host
+        # - https://host/api
+        # Internally we keep the non-/api base and all callers use paths starting with "api/".
+        base = (self.base_url or "").rstrip("/")
+        if base.endswith("/api"):
+            base = base[: -len("/api")]
+        object.__setattr__(self, "base_url", base)
 
     def _auth_value(self) -> str:
         t = (self.token or "").strip()

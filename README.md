@@ -25,7 +25,7 @@ calewood-toolbox -h
 
 ### Calewood
 
-- `CALEWOOD_BASE_URL` (example: `https://calewood.example`)
+- `CALEWOOD_BASE_URL` (défaut: `http://calewood.n0flow.io/api`)
 - `CALEWOOD_TOKEN` (Bearer token)
 
 ### Instances qBittorrent
@@ -138,7 +138,7 @@ Exécution (exemple) :
 
 ```bash
 docker run --rm -it \
-  -e CALEWOOD_BASE_URL="https://calewood.example" \
+  -e CALEWOOD_BASE_URL="http://calewood.n0flow.io/api" \
   -e CALEWOOD_TOKEN="..." \
   -e QBIT_INSTANCES_JSON='[{"name":"box","base_url":"http://qb:8080","username":"user","password":"pass"}]' \
   calewood-toolbox -h
