@@ -87,3 +87,68 @@ docker run --rm -it \
 ## Licence
 
 GPL-3.0
+
+## Commandes (résumé humain)
+
+Note : le CLI est en **dry-run par défaut**. Ajoute `--no-dry-run` pour exécuter vraiment.
+
+### Général
+
+- `-h` : aide complète.
+- `--verbose` : logs détaillés.
+- `--limit N` : limite le nombre d’items traités/listés.
+- `--json` : sortie JSON (quand supporté par la commande).
+
+### Calewood (recherche / listing)
+
+- `--calewood-list PER_PAGE` : test d’accès API Calewood.
+- `--calewood-torrent-q Q` : recherche via `GET /api/torrent/list?q=...` (paginé).
+- `--calewood-find-sharewood-hash HASH` : trouve un torrent Calewood par `sharewood_hash` (via `/api/torrent/list?q=`).
+- `--calewood-find-lacale-hash HASH` : trouve un legacy archive par `lacale_hash` (via `/api/archive/list`).
+
+### Archivage legacy (/api/archive/*)
+
+- `--calewood-archive-uploaded` : liste les items `status=uploaded` (à prendre).
+- `--calewood-archive-take-uploaded` : `POST /api/archive/take/{id}` sur tous les `uploaded` (respecte `--limit`).
+- `--calewood-archive-take-uploaded-to-qbit` : take + téléchargement `.torrent` La‑Cale + ajout sur `--qb-host`.
+- `--verify-my-archives-in-qbit` : compare `my-archives` vs qBittorrent (`--qb-host`), affiche les manquants.
+- `--open-lacale-download` : ouvre les liens La‑Cale pour les manquants (utilisé avec `--verify-my-archives-in-qbit`).
+
+### Pré‑archivage (Archiviste) (/api/archive/pre-archivage/*)
+
+- `--list-archive-prearchivage` : liste le pool pré‑archivage (filtrable via `--prearchivage-status`).
+- `--prearchivage-take ID` / `--prearchivage-abandon ID` / `--prearchivage-confirm ID` / `--prearchivage-blast ID` : actions unitaires.
+- `--prearchivage-download-my-torrents` : télécharge mes `.torrent` Sharewood (status `my-pre-archiving`), option `--prearchivage-add-to-qbit`.
+- `--prearchivage-download-my-awaiting-fiche-torrents` : variante “awaiting_fiche” uniquement.
+- `--prearchivage-verify-my-awaiting-fiche-100` : vérifie que mes `awaiting_fiche` sont à 100% sur `--qb-host`.
+- `--prearchivage-redl-my-awaiting-fiche-not-complete` : retélécharge et ré‑ajoute dans qBittorrent les non-100%.
+- `--prearchivage-confirm-my-post-archiving-100` : confirme mes `post_archiving` si présents à 100% sur `--qb-host` (sinon ouvre le download).
+
+### Pré‑archivage (Uploader / fiches) (/api/upload/pre-archivage/*)
+
+- `--fiche-list [STATUS]` : liste les fiches (par défaut `awaiting_fiche`).
+- `--fiche-take ID` / `--fiche-complete ID --fiche-url-lacale URL` / `--fiche-abandon ID` / `--fiche-blast ID --fiche-reason TEXT` : actions unitaires.
+- `--fiche-take-awaiting-category CAT` : take en masse des fiches `awaiting_fiche` pour `category==CAT` (regex optionnelle `--fiche-take-name-regex`).
+
+### qBittorrent (outil / maintenance) (nécessite souvent `--qb-host`)
+
+- `--qbit-get-hash HASH` : affiche un torrent qBittorrent.
+- `--qbit-dl-queue` / `--qbit-downloading-gib` : stats de file d’attente / backlog.
+- `--qbit-cycle-stop-slow-downloads` : round-robin des DL pour garder un nombre de slots actifs.
+- `--qbit-add-tracker URL` / `--qbit-remove-tracker URL` : gestion trackers (avec filtres).
+- `--qbit-orphan-non-lacale-twins` : liste les torrents non‑La‑Cale sans jumeau La‑Cale (nom identique), hors `cross-seed` + hors items Calewood en cours.
+- `--qbit-orphan-non-lacale-twins-delete` : supprime (torrent + fichiers) les orphelins listés (par défaut `--limit 1`).
+
+### Migration (qBittorrent)
+
+- `--migrate-sharewood-to-calewood` : migration Sharewood ↔ La‑Cale (move data + re-add skip_checking + tags/catégories).
+- `--migrate-from-prefix` / `--migrate-to-prefix` : mapping des chemins.
+
+### Fichiers / FS
+
+- `--fs-orphans ROOT` : compare FS vs qBittorrent (multi-instances possibles), sort les chemins orphelins.
+- `--fs-ignore PATH` / `--path-map FROM=TO` / `--managed-ignore-prefix PREFIX` : réglages de scan.
+
+### Média
+
+- `--thumbsheet VIDEO` : mosaïque 3×3 (10–90%) via ffmpeg.
