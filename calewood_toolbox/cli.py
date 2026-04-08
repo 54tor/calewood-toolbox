@@ -825,7 +825,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--abandon-stalled-zero",
         action="store_true",
-        help="From my-uploading: if torrent exists on the selected qBittorrent host and progress==0.0, append an abandon line to comment and POST /api/upload/abandon/{id}. Nécessite --qb-host.",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--calewood-upload-take-low-seeders",
