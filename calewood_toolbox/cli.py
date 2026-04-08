@@ -830,7 +830,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--calewood-upload-take-low-seeders",
         action="store_true",
-        help="Liste /api/upload/list items with 0-1 seeders (paged).",
+        help=argparse.SUPPRESS,
     )
     # No deprecated aliases: keep CLI surface stable and explicit.
     parser.add_argument(

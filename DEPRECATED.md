@@ -22,3 +22,9 @@ Raison : trop “large” (take massif) et trop risqué pour être gardé en sur
 Cette commande est **dépréciée** et masquée de `--help`.
 
 Raison : action destructive (abandon) basée sur des heuristiques (seeders), préférable en script ponctuel.
+
+## `--calewood-upload-take-low-seeders`
+
+Cette commande est **dépréciée** et masquée de `--help`.
+
+Raison : commande “listing” trop spécifique (seeders<=1) qui a été absorbée par d’autres workflows plus ciblés.
