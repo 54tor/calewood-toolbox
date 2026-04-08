@@ -52,14 +52,14 @@ def main(argv: list[str] | None = None) -> int:
         type=str,
         default=None,
         required=False,
-        help="qBittorrent instance name from config.QBIT_INSTANCES.",
+        help="Alias/nom d'instance qBittorrent (champ `name`) défini dans `QBIT_INSTANCES_JSON`.",
     )
     parser.add_argument(
         "--seedbox-passphrase",
         type=str,
         default="",
         metavar="TEXT",
-        help="Seedbox passphrase for Calewood seedbox-check endpoints (can also be set via CALEWOOD_SEEDBOX_PASSPHRASE).",
+        help="Passphrase pour les endpoints Calewood `seedbox-check` (peut aussi être définie via `CALEWOOD_SEEDBOX_PASSPHRASE`).",
     )
     parser.set_defaults(dry_run=True)
     dry_group = parser.add_mutually_exclusive_group(required=False)
@@ -203,17 +203,17 @@ def main(argv: list[str] | None = None) -> int:
         "--qbit-orphan-non-lacale-twins",
         action="store_true",
         help=(
-            "On a qBittorrent host: build the set of torrent names that have a tracker starting with "
-            "https://tracker.la-cale.space, then list all torrents whose tracker does NOT start with that prefix "
-            "and that do not have a La-Cale twin with the same name. Requires --qb-host."
+            "Sur un hôte qBittorrent : construit l'ensemble des noms de torrents qui ont un tracker commençant par "
+            "https://tracker.la-cale.space, puis liste tous les torrents dont le tracker ne commence PAS par ce préfixe "
+            "et qui n'ont pas de jumeau La‑Cale (même nom). Nécessite --qb-host."
         ),
     )
     parser.add_argument(
         "--qbit-orphan-non-lacale-twins-delete",
         action="store_true",
         help=(
-            "With --qbit-orphan-non-lacale-twins: delete matched torrents from qBittorrent including files. "
-            "Uses --limit (default 1 if omitted). Supports --dry-run and --verbose."
+            "Avec --qbit-orphan-non-lacale-twins : supprime les torrents matchés via qBittorrent, données incluses. "
+            "Utilise --limit (défaut : 1 si omis). Supporte --dry-run et --verbose."
         ),
     )
     parser.add_argument(
@@ -275,19 +275,18 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         default=True,
         help=(
-            "With --migrate-sharewood-to-calewood: after moving Sharewood data, export its .torrent, delete the torrent "
-            "(without files), then re-add it with save_path and skip_checking=1 so qBittorrent doesn't recheck. "
-            "The re-added Sharewood torrent is categorized/tagged as cross-seed and left paused."
+            "Avec --migrate-sharewood-to-calewood : après le déplacement des données Sharewood, exporte son .torrent, supprime le torrent "
+            "(sans toucher aux fichiers), puis le ré‑ajoute avec save_path et skip_checking=1 pour éviter une revérification qBittorrent. "
+            "Le torrent Sharewood ré‑ajouté est mis en catégorie/tag cross-seed et laissé en pause."
         ),
     )
     parser.add_argument(
         "--qbit-cycle-stop-slow-downloads",
         action="store_true",
         help=(
-            "Continuously monitor a qBittorrent host and keep N active download slots by doing a strict "
-            "round-robin over paused torrents: resume a paused torrent, let it run for 30s, then keep it "
-            "running if avg speed >= 1 MiB/s, otherwise pause it and try the next. Requires --qb-host. "
-            "Runs until Ctrl-C."
+            "Sur un hôte qBittorrent : maintient N téléchargements actifs via un round-robin strict sur les torrents en pause. "
+            "Relance un torrent, le laisse tourner ~30s, puis le conserve si le débit moyen >= 1 MiB/s ; sinon le remet en pause "
+            "et passe au suivant. Nécessite --qb-host. Tourne jusqu'à Ctrl-C."
         ),
     )
     parser.add_argument(
@@ -295,21 +294,21 @@ def main(argv: list[str] | None = None) -> int:
         type=float,
         default=1.0,
         metavar="MIB",
-        help="Avec --qbit-cycle-stop-slow-downloads: minimum download speed in MiB/s (default: 1.0).",
+        help="Avec --qbit-cycle-stop-slow-downloads : débit minimum en MiB/s (défaut : 1.0).",
     )
     parser.add_argument(
         "--qbit-cycle-interval-seconds",
         type=int,
         default=10,
         metavar="S",
-        help="Avec --qbit-cycle-stop-slow-downloads: sampling interval in seconds (default: 10).",
+        help="Avec --qbit-cycle-stop-slow-downloads : intervalle d'échantillonnage en secondes (défaut : 10).",
     )
     parser.add_argument(
         "--qbit-cycle-slow-for-seconds",
         type=int,
         default=10,
         metavar="S",
-        help="Avec --qbit-cycle-stop-slow-downloads: only pause torrents that have been under the speed threshold for at least S seconds (default: 10).",
+        help="Avec --qbit-cycle-stop-slow-downloads : ne pause que si sous le seuil depuis au moins S secondes (défaut : 10).",
     )
     parser.add_argument(
         "--qbit-cycle-probe-seconds",
@@ -317,8 +316,8 @@ def main(argv: list[str] | None = None) -> int:
         default=30,
         metavar="S",
         help=(
-            "With --qbit-cycle-stop-slow-downloads: after resuming/starting a torrent, let it run for S seconds, "
-            "then measure its average speed over that window and pause it if below threshold (default: 30)."
+            "Avec --qbit-cycle-stop-slow-downloads : après reprise/démarrage, laisse tourner S secondes, "
+            "mesure le débit moyen sur la fenêtre, et remet en pause si sous le seuil (défaut : 30)."
         ),
     )
     parser.add_argument(
@@ -326,39 +325,43 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         default=8,
         metavar="N",
-        help="Avec --qbit-cycle-stop-slow-downloads: target number of active download slots (default: 8).",
+        help="Avec --qbit-cycle-stop-slow-downloads : nombre cible de slots de téléchargement actifs (défaut : 8).",
     )
     parser.add_argument(
         "--seedbox-upload-prearchivage-flow",
         action="store_true",
-        help="Run upload seedbox check, then for my-uploading items at seedbox_progress==1: POST /api/upload/abandon/{id}, POST /api/archive/pre-archivage/take/{id}, POST /api/archive/pre-archivage/dl-done/{id}. Nécessite --seedbox-passphrase or CALEWOOD_SEEDBOX_PASSPHRASE. Supporte --dry-run and --verbose.",
+        help=(
+            "Déclenche `POST /api/upload/seedbox-check`, puis pour mes `my-uploading` avec `seedbox_progress==1` : "
+            "`POST /api/upload/abandon/{id}`, `POST /api/archive/pre-archivage/take/{id}`, `POST /api/archive/pre-archivage/dl-done/{id}`. "
+            "Nécessite --seedbox-passphrase ou CALEWOOD_SEEDBOX_PASSPHRASE. Supporte --dry-run et --verbose."
+        ),
     )
     parser.add_argument(
         "--seedbox-upload-prearchivage-limit",
         type=int,
         default=0,
         metavar="N",
-        help="Avec --seedbox-upload-prearchivage-flow: limit the number of ready items processed (0 = no limit).",
+        help="Avec --seedbox-upload-prearchivage-flow : limite le nombre d'items traités (0 = illimité).",
     )
     parser.add_argument(
         "--list-my-upload-prearchivage",
         action="store_true",
-        help="Liste my uploader fiches via GET /api/upload/pre-archivage/list?status=my-fiches (paged, per_page=200).",
+        help="Liste mes fiches uploader via `GET /api/upload/pre-archivage/list?status=my-fiches` (paginé, per_page=200).",
     )
     parser.add_argument(
         "--list-my-archive-prearchivage",
         action="store_true",
-        help="Liste my pre-archivages via GET /api/archive/pre-archivage/list?status=my-pre-archiving (paged, per_page=200). Triggers /api/archive/seedbox-check.",
+        help="Liste mes pré‑archivages via `GET /api/archive/pre-archivage/list?status=my-pre-archiving` (paginé, per_page=200) et déclenche `POST /api/archive/seedbox-check`.",
     )
     parser.add_argument(
         "--list-archive-prearchivage",
         action="store_true",
-        help="Liste /api/archive/pre-archivage/list (all, per_page=200). Use --prearchivage-status to filter, output sorted by size_bytes desc by default.",
+        help="Liste le pool pré‑archivage via `GET /api/archive/pre-archivage/list` (tous, per_page=200). Utilise --prearchivage-status pour filtrer.",
     )
     parser.add_argument(
         "--prearchivage-status",
         metavar="STATUS",
-        help="Avec --list-archive-prearchivage: filter by status (e.g. pre_archiving).",
+        help="Avec --list-archive-prearchivage : filtre par status (ex : pre_archiving, awaiting_fiche, post_archiving).",
     )
     parser.add_argument(
         "--prearchivage-take",
@@ -395,48 +398,48 @@ def main(argv: list[str] | None = None) -> int:
         "--prearchivage-torrent-file",
         type=int,
         metavar="ID",
-        help="Télécharge Sharewood .torrent via GET /api/archive/pre-archivage/torrent-file/{id} and write it to --prearchivage-torrent-file-out.",
+        help="Télécharge le .torrent Sharewood via `GET /api/archive/pre-archivage/torrent-file/{id}` et l'écrit vers --prearchivage-torrent-file-out.",
     )
     parser.add_argument(
         "--prearchivage-torrent-file-out",
         type=str,
         metavar="PATH",
         default="",
-        help="Avec --prearchivage-torrent-file: output path for the .torrent file.",
+        help="Avec --prearchivage-torrent-file : chemin de sortie du fichier .torrent.",
     )
     parser.add_argument(
         "--prearchivage-take-smallest",
         type=int,
         metavar="N",
-        help="Liste available pre-archivage (no status filter), sort by size_bytes asc, take up to N items, then download each Sharewood .torrent into --prearchivage-torrent-dir. Supporte --dry-run and --verbose.",
+        help="Liste le pool pré‑archivage (tri par taille croissante), prend jusqu'à N items, puis télécharge les .torrent Sharewood vers --prearchivage-torrent-dir. Supporte --dry-run et --verbose.",
     )
     parser.add_argument(
         "--prearchivage-q",
         type=str,
         default="",
         metavar="Q",
-        help="Avec --prearchivage-take-smallest: pass q=Q to /api/archive/pre-archivage/list.",
+        help="Avec --prearchivage-take-smallest : passe `q=Q` à `/api/archive/pre-archivage/list`.",
     )
     parser.add_argument(
         "--prearchivage-cat",
         type=str,
         default="",
         metavar="CAT",
-        help="Avec --prearchivage-take-smallest: pass cat=CAT to /api/archive/pre-archivage/list.",
+        help="Avec --prearchivage-take-smallest : passe `cat=CAT` à `/api/archive/pre-archivage/list`.",
     )
     parser.add_argument(
         "--prearchivage-subcat",
         type=str,
         default="",
         metavar="SUBCAT",
-        help="Avec --prearchivage-take-smallest: pass subcat=SUBCAT to /api/archive/pre-archivage/list.",
+        help="Avec --prearchivage-take-smallest : passe `subcat=SUBCAT` à `/api/archive/pre-archivage/list`.",
     )
     parser.add_argument(
         "--prearchivage-seeders",
         type=int,
         default=0,
         metavar="N",
-        help="Avec --prearchivage-take-smallest: pass seeders=N (min seeders) to /api/archive/pre-archivage/list. 0 disables.",
+        help="Avec --prearchivage-take-smallest : passe `seeders=N` (minimum) à `/api/archive/pre-archivage/list`. 0 désactive le filtre côté API.",
     )
     parser.add_argument(
         "--prearchivage-min-size",
@@ -450,45 +453,45 @@ def main(argv: list[str] | None = None) -> int:
         type=str,
         default="",
         metavar="SIZE",
-        help='Avec --prearchivage-take-smallest: pass max_size=SIZE (e.g. "50GB") to /api/archive/pre-archivage/list.',
+        help='Avec --prearchivage-take-smallest : passe `max_size=SIZE` (ex: "50GB") à `/api/archive/pre-archivage/list`.',
     )
     parser.add_argument(
         "--prearchivage-download-my-torrents",
         action="store_true",
         help=(
-            'List my pre-archivage via GET /api/archive/pre-archivage/list?status=my-pre-archiving (paged, per_page=200), '
-            "then download each Sharewood .torrent via GET /api/archive/pre-archivage/torrent-file/{id} into --prearchivage-torrent-dir. "
-            "Supports --dry-run, --verbose, and --limit. If --prearchivage-add-to-qbit is set, also adds each .torrent to qBittorrent."
+            "Liste mes pré‑archivages via `GET /api/archive/pre-archivage/list?status=my-pre-archiving` (paginé, per_page=200), "
+            "puis télécharge chaque .torrent Sharewood via `GET /api/archive/pre-archivage/torrent-file/{id}` dans --prearchivage-torrent-dir. "
+            "Supporte --dry-run, --verbose, --limit. Si --prearchivage-add-to-qbit est actif, ajoute aussi chaque .torrent à qBittorrent."
         ),
     )
     parser.add_argument(
         "--prearchivage-download-only-pre-archiving",
         action="store_true",
-        help='Avec --prearchivage-download-my-torrents: only include items with status=="pre_archiving".',
+        help='Avec --prearchivage-download-my-torrents : inclut uniquement les items avec status=="pre_archiving".',
     )
     parser.add_argument(
         "--prearchivage-download-only-awaiting-fiche",
         action="store_true",
-        help='Avec --prearchivage-download-my-torrents: only include items with status=="awaiting_fiche".',
+        help='Avec --prearchivage-download-my-torrents : inclut uniquement les items avec status=="awaiting_fiche".',
     )
     parser.add_argument(
         "--prearchivage-download-my-awaiting-fiche-torrents",
         action="store_true",
-        help="Shortcut: download Sharewood .torrent files for my pre-archivage items with status=awaiting_fiche.",
+        help="Raccourci : télécharge les fichiers .torrent Sharewood pour mes pré‑archivages en status=awaiting_fiche.",
     )
     parser.add_argument(
         "--prearchivage-verify-my-awaiting-fiche-100",
         action="store_true",
-        help="Vérifie my pre-archivage items with status=awaiting_fiche are present in qBittorrent (--qb-host) and fully downloaded (progress==1.0).",
+        help="Vérifie que mes pré‑archivages en status=awaiting_fiche sont présents dans qBittorrent (--qb-host) et complets (progress==1.0). Nécessite --qb-host.",
     )
     parser.add_argument(
         "--prearchivage-redl-my-awaiting-fiche-not-complete",
         action="store_true",
         help=(
-            "With --prearchivage-verify-my-awaiting-fiche-100 behavior: for my awaiting_fiche items that are missing "
-            "or not complete in qBittorrent, re-download the Sharewood .torrent file and (re)add it to qBittorrent "
-            'category="sharewood" start=1. If the torrent exists but is incomplete, it is deleted with files first. '
-            "Requires --qb-host. Supports --dry-run, --limit, --verbose."
+            "Même logique que --prearchivage-verify-my-awaiting-fiche-100 : pour mes items awaiting_fiche absents ou "
+            "incomplets dans qBittorrent, retélécharge le .torrent Sharewood et le (ré)ajoute à qBittorrent "
+            'category="sharewood" start=1. Si le torrent existe mais est incomplet, il est d’abord supprimé (avec fichiers). '
+            "Nécessite --qb-host. Supporte --dry-run, --limit, --verbose."
         ),
     )
     parser.add_argument(
@@ -496,19 +499,19 @@ def main(argv: list[str] | None = None) -> int:
         type=str,
         metavar="DIR",
         default=os.path.join(os.getcwd(), "downloads"),
-        help="Avec --prearchivage-take-smallest: destination directory for downloaded .torrent files.",
+        help="Avec --prearchivage-take-smallest : dossier de destination pour les fichiers .torrent téléchargés.",
     )
     parser.add_argument(
         "--prearchivage-add-to-qbit",
         action="store_true",
-        help='Avec pre-archivage torrent downloads: after downloading the .torrent, add it to qBittorrent (--qb-host) with category="sharewood" and start it. Supporte --dry-run.',
+        help='Avec les téléchargements pré‑archivage : après download du .torrent, l’ajoute à qBittorrent (--qb-host) en category="sharewood" et le démarre. Supporte --dry-run.',
     )
 
     # Pré-archivage (Uploader) / fiches
     parser.add_argument(
         "--fiche-list",
         metavar="STATUS",
-        help="Liste /api/upload/pre-archivage/list (paged, per_page=200). STATUS can be empty (awaiting_fiche), my-fiches, my-completed.",
+        help="Liste `/api/upload/pre-archivage/list` (paginé, per_page=200). STATUS peut être vide (awaiting_fiche), `my-fiches`, `my-completed`.",
     )
     parser.add_argument(
         "--fiche-take",
@@ -521,10 +524,9 @@ def main(argv: list[str] | None = None) -> int:
         type=str,
         metavar="CAT",
         help=(
-            "Take all uploader fiches in awaiting_fiche matching a category: "
-            "list GET /api/upload/pre-archivage/list (default status=awaiting_fiche, paged per_page=200), "
-            "filter category==CAT, then POST "
-            "/api/upload/pre-archivage/take/{id}. Supports --limit, --verbose, and --dry-run/--just-do-it."
+            "Prend en masse des fiches uploader en awaiting_fiche pour une catégorie : "
+            "liste `GET /api/upload/pre-archivage/list` (paginé, per_page=200), filtre `category==CAT`, puis "
+            "`POST /api/upload/pre-archivage/take/{id}`. Supporte --limit, --verbose, --dry-run/--just-do-it."
         ),
     )
     parser.add_argument(
@@ -532,19 +534,19 @@ def main(argv: list[str] | None = None) -> int:
         action="append",
         default=[],
         metavar="REGEX",
-        help="Avec --fiche-take-awaiting-category: only include fiches whose name matches REGEX (repeatable).",
+        help="Avec --fiche-take-awaiting-category : inclut uniquement les fiches dont le nom matche REGEX (répétable).",
     )
     parser.add_argument(
         "--fiche-take-subcat",
         type=str,
         default="",
         metavar="SUBCAT",
-        help='Avec --fiche-take-awaiting-category: only include fiches whose subcategory matches SUBCAT exactly (example: "Films X").',
+        help='Avec --fiche-take-awaiting-category : inclut uniquement les fiches dont subcategory == SUBCAT (ex: "Films X").',
     )
     parser.add_argument(
         "--fiche-awaiting-video-subcats",
         action="store_true",
-        help="Liste distinct subcategory values (with counts) for category=='Vidéos' among awaiting_fiche fiches.",
+        help="Liste les valeurs distinctes de subcategory (avec comptage) pour category=='Vidéos' parmi les fiches awaiting_fiche.",
     )
     parser.add_argument(
         "--fiche-complete",
@@ -557,7 +559,7 @@ def main(argv: list[str] | None = None) -> int:
         type=str,
         metavar="URL",
         default="",
-        help="Avec --fiche-complete: url_lacale to send.",
+        help="Avec --fiche-complete : valeur `url_lacale` à envoyer (ex : https://la-cale.space/torrents/...).",
     )
     parser.add_argument(
         "--fiche-abandon",
@@ -576,7 +578,7 @@ def main(argv: list[str] | None = None) -> int:
         type=str,
         metavar="TEXT",
         default="",
-        help="Avec --fiche-blast: required reason.",
+        help="Avec --fiche-blast : raison obligatoire (stockée dans le commentaire et envoyée en notification).",
     )
     parser.add_argument(
         "--fiche-scrape",
@@ -600,51 +602,53 @@ def main(argv: list[str] | None = None) -> int:
         "--fiche-post-lacale",
         type=int,
         metavar="ID",
-        help="POST /api/upload/pre-archivage/post-lacale/{id}. Nécessite --seedbox-passphrase or CALEWOOD_SEEDBOX_PASSPHRASE. Supporte --dry-run.",
+        help="POST /api/upload/pre-archivage/post-lacale/{id}. Nécessite --seedbox-passphrase ou CALEWOOD_SEEDBOX_PASSPHRASE. Supporte --dry-run.",
     )
     parser.add_argument(
         "--revert-my-awaiting-fiche-to-selected",
         action="store_true",
-        help="For my /api/archive/pre-archivage/list items in status=awaiting_fiche: POST /api/archive/pre-archivage/abandon/{id}, then POST /api/upload/take/{id}. Supporte --dry-run and --verbose.",
+        help="Pour mes items `/api/archive/pre-archivage/list?status=my-pre-archiving` en `awaiting_fiche` : POST /api/archive/pre-archivage/abandon/{id}, puis POST /api/upload/take/{id}. Supporte --dry-run et --verbose.",
     )
     parser.add_argument(
         "--list-my-uploading-seedbox-100",
         action="store_true",
-        help="Déclenche upload seedbox check, then list /api/upload/list?status=my-uploading items with seedbox_progress==1 (per_page=200). Nécessite --seedbox-passphrase or CALEWOOD_SEEDBOX_PASSPHRASE. Supporte --verbose.",
+        help="Déclenche le seedbox-check Upload, puis liste `/api/upload/list?status=my-uploading` avec `seedbox_progress==1` (per_page=200). Nécessite --seedbox-passphrase ou CALEWOOD_SEEDBOX_PASSPHRASE. Supporte --verbose.",
     )
     parser.add_argument(
         "--list-my-uploading-seedbox-100-exclude",
         action="append",
         default=[],
         metavar="REGEX",
-        help="Avec --list-my-uploading-seedbox-100: exclude items whose name matches this regex (case-insensitive). Repeatable.",
+        help="Avec --list-my-uploading-seedbox-100 : exclut les items dont le nom matche REGEX (insensible à la casse). Répétable.",
     )
     parser.add_argument(
         "--list-my-uploading-seedbox-100-move-prearchivage",
         action="store_true",
-        help="Avec --list-my-uploading-seedbox-100: for each matched item, POST /api/upload/abandon/{id}, then POST /api/archive/pre-archivage/take/{id}, then POST /api/archive/pre-archivage/dl-done/{id}. Supporte --dry-run and --verbose.",
+        help="Avec --list-my-uploading-seedbox-100 : pour chaque item matché, POST /api/upload/abandon/{id}, puis POST /api/archive/pre-archivage/take/{id}, puis POST /api/archive/pre-archivage/dl-done/{id}. Supporte --dry-run et --verbose.",
     )
     parser.add_argument(
         "--list-my-archive-prearchivage-dl-done",
         action="store_true",
-        help="Avec --list-my-archive-prearchivage: for items with seedbox_progress==1, POST /api/archive/pre-archivage/dl-done/{id}. Supporte --dry-run.",
+        help="Avec --list-my-archive-prearchivage : pour les items avec `seedbox_progress==1`, POST /api/archive/pre-archivage/dl-done/{id}. Supporte --dry-run.",
     )
     parser.add_argument(
         "--prearchivage-dl-done-100",
         action="store_true",
         help=(
-            "For my pre-archiving queue (status=my-pre-archiving + status==pre_archiving): "
-            "verify on qBittorrent (--qb-host) that the Sharewood torrent is present and progress==1.0, "
-            "then POST /api/archive/pre-archivage/dl-done/{id}. Supports --dry-run and --verbose."
+            "Pour ma file de pré‑archivage (status=my-pre-archiving + status==pre_archiving) : "
+            "vérifie sur qBittorrent (--qb-host) que le torrent Sharewood est présent et complet (progress==1.0), "
+            "puis POST /api/archive/pre-archivage/dl-done/{id}. Supporte --dry-run et --verbose."
         ),
     )
     parser.add_argument(
         "--prearchivage-confirm-my-post-archiving-100",
         action="store_true",
         help=(
-            "Trigger /api/archive/seedbox-check, then for my /api/archive/pre-archivage/list?status=my-pre-archiving items in status=post_archiving and seedbox_progress==1: "
-            "verify lacale_hash exists in qBittorrent (--qb-host). If missing, open https://la-cale.space/api/torrents/download/{hash}. "
-            "Otherwise POST /api/archive/pre-archivage/confirm/{id}. Requires --seedbox-passphrase or CALEWOOD_SEEDBOX_PASSPHRASE. Supports --dry-run and --verbose."
+            "Déclenche POST /api/archive/seedbox-check, puis pour mes items "
+            "`/api/archive/pre-archivage/list?status=my-pre-archiving` en `post_archiving` avec `seedbox_progress==1` : "
+            "vérifie que `lacale_hash` existe dans qBittorrent (--qb-host). Si absent, ouvre "
+            "https://la-cale.space/api/torrents/download/{hash}. Sinon POST /api/archive/pre-archivage/confirm/{id}. "
+            "Nécessite --seedbox-passphrase ou CALEWOOD_SEEDBOX_PASSPHRASE. Supporte --dry-run et --verbose."
         ),
     )
     parser.add_argument(
@@ -653,96 +657,99 @@ def main(argv: list[str] | None = None) -> int:
         metavar="DIR",
         default="",
         help=(
-            "With --prearchivage-confirm-my-post-archiving-100: download the Sharewood .torrent via "
-            "GET /api/archive/pre-archivage/torrent-file/{id} into DIR as {id}.torrent for each target that is missing in qBittorrent "
-            "(and also for those with unknown lacale_hash). Supports --dry-run and --verbose."
+            "Avec --prearchivage-confirm-my-post-archiving-100 : télécharge le .torrent Sharewood via "
+            "GET /api/archive/pre-archivage/torrent-file/{id} dans DIR sous la forme {id}.torrent pour chaque cible absente de qBittorrent "
+            "(et aussi pour celles dont le lacale_hash est inconnu). Supporte --dry-run et --verbose."
         ),
     )
     parser.add_argument(
         "--list-my-upload-prearchivage-prez-check",
         action="store_true",
-        help="Avec --list-my-upload-prearchivage: call GET /api/upload/content/{id}?type=prez to compute the PREZ Y/N column (slower).",
+        help="Avec --list-my-upload-prearchivage : appelle GET /api/upload/content/{id}?type=prez pour calculer la colonne PREZ (Y/N) (plus lent).",
     )
     parser.add_argument(
         "--list-my-upload-prearchivage-prez-limit",
         type=int,
         default=0,
         metavar="N",
-        help="Avec --list-my-upload-prearchivage --list-my-upload-prearchivage-prez-check: limit content checks (0 = no limit).",
+        help="Avec --list-my-upload-prearchivage + --list-my-upload-prearchivage-prez-check : limite les checks de contenu (0 = illimité).",
     )
     parser.add_argument(
         "--list-my-upload-prearchivage-generate-prez",
         action="store_true",
-        help="Avec --list-my-upload-prearchivage: for PREZ=N items, POST /api/upload/pre-archivage/generate-prez/{id}. Supporte --dry-run.",
+        help="Avec --list-my-upload-prearchivage : pour les items avec PREZ=N, POST /api/upload/pre-archivage/generate-prez/{id}. Supporte --dry-run.",
     )
     parser.add_argument(
         "--process-calewood-list",
         action="store_true",
-        help="Process /api/archive/list items: for each item with lacale_hash present in qBittorrent, POST take then complete.",
+        help="Traite `/api/archive/list` : pour chaque item dont `lacale_hash` est présent dans qBittorrent, exécute POST /api/archive/take/{id} puis POST /api/archive/complete/{id}.",
     )
     parser.add_argument(
         "--qbit-missing-lacale-twins",
         action="store_true",
-        help="Liste qBittorrent torrents not tracked by La-Cale that do not have a La-Cale twin with the same name.",
+        help="Liste les torrents qBittorrent non trackés par La‑Cale qui n'ont pas de jumeau La‑Cale (même nom).",
     )
     parser.add_argument(
         "--qbit-without-lacale-twin",
         action="store_true",
-        help="Liste all qBittorrent torrents (excluding La-Cale-tracked ones) whose name has no twin among torrents tracked by La-Cale.",
+        help="Liste tous les torrents qBittorrent (hors ceux trackés par La‑Cale) dont le nom n'a aucun jumeau parmi les torrents trackés par La‑Cale.",
     )
     parser.add_argument(
         "--delete",
         action="store_true",
-        help="When used with --qbit-missing-lacale-twins, delete each listed torrent and its files from qBittorrent.",
+        help="Avec --qbit-missing-lacale-twins : supprime chaque torrent listé et ses données via qBittorrent.",
     )
     parser.add_argument(
         "--limit",
         type=int,
         default=0,
-        help="Limit number of items printed/processed (0 = no limit).",
+        help="Limite le nombre d'items affichés/traités (0 = illimité).",
     )
     parser.add_argument(
         "--verbose",
         action="store_true",
-        help="Verbose output (diagnostics).",
+        help="Sortie verbeuse (diagnostics).",
     )
     parser.add_argument(
         "--fs-orphans",
         type=str,
         metavar="ROOT",
-        help="Scan a filesystem root and print entries not managed by qBittorrent (compares against torrent content/root paths).",
+        help="Scanne un dossier ROOT et affiche ce qui n'est pas géré par qBittorrent (comparaison avec les chemins content/root des torrents).",
     )
     parser.add_argument(
         "--fs-ignore",
         action="append",
         default=[],
         metavar="PATH",
-        help="Path under ROOT to ignore (repeatable). Example: /volumes/mega/1080p",
+        help="Chemin sous ROOT à ignorer (répétable). Exemple : /volumes/mega/1080p",
     )
     parser.add_argument(
         "--path-map",
         action="append",
         default=[],
         metavar="FROM=TO",
-        help="Map qBittorrent paths to local filesystem paths before comparison (repeatable). Example: /volumes/be.cloudyfocan/mega=/mnt/.../mega",
+        help="Mappe les chemins qBittorrent vers les chemins locaux avant comparaison (répétable). Exemple : /volumes/be.cloudyfocan/mega=/mnt/.../mega",
     )
     parser.add_argument(
         "--managed-ignore-prefix",
         action="append",
         default=[],
         metavar="PREFIX",
-        help="Ignore qBittorrent-managed paths under this prefix (repeatable). Example: /incomplete",
+        help="Ignore les chemins gérés par qBittorrent sous ce préfixe (répétable). Exemple : /incomplete",
     )
     parser.add_argument(
         "--check-my-uploads",
         action="store_true",
-        help="Check /api/upload/list?status=my-uploading (paged) and verify sharewood_hash exists in qBittorrent and is fully downloaded.",
+        help=(
+            "Vérifie `/api/upload/list?status=my-uploading` (paginé) et contrôle que `sharewood_hash` est présent "
+            "sur l'instance qBittorrent ciblée et que le torrent est complet (progress==1.0)."
+        ),
     )
     parser.add_argument(
         "--calewood-upload-get",
         type=int,
         metavar="ID",
-        help="Call GET /api/upload/get/{id} and print the response.",
+        help="Appelle `GET /api/upload/get/{id}` et affiche la réponse.",
     )
     parser.add_argument(
         "--calewood-upload-abandon",
@@ -754,25 +761,28 @@ def main(argv: list[str] | None = None) -> int:
         "--calewood-archive-status",
         type=str,
         metavar="STATUS",
-        help="Liste /api/archive/list with a status filter (e.g. my-archiving, my-archives).",
+        help="Liste `/api/archive/list` avec un filtre `status` (ex : my-archiving, my-archives).",
     )
     parser.add_argument(
         "--calewood-archive-uploaded",
         action="store_true",
-        help="Legacy archivage: list items available to take (GET /api/archive/list?status=uploaded, paged, per_page=200, v1_only=0).",
+        help="Archivage legacy : liste les items disponibles à prendre (status=uploaded, paginé, per_page=200).",
     )
     parser.add_argument(
         "--calewood-archive-take-uploaded",
         action="store_true",
-        help="Legacy archivage: take all available uploaded items (POST /api/archive/take/{id} for each item from status=uploaded). Supporte --dry-run, --limit, --verbose.",
+        help=(
+            "Archivage legacy : prend tous les items disponibles (status=uploaded) en appelant "
+            "`POST /api/archive/take/{id}` pour chacun. Supporte --dry-run, --limit, --verbose."
+        ),
     )
     parser.add_argument(
         "--calewood-archive-take-uploaded-to-qbit",
         action="store_true",
         help=(
-            "Legacy archivage: take all available uploaded items, then download the La-Cale .torrent "
-            "from https://la-cale.space/api/torrents/download/{lacale_hash} and add it to the selected "
-            "qBittorrent instance. Requires --qb-host. Supports --dry-run, --limit, --verbose."
+            "Archivage legacy : prend tous les items disponibles (status=uploaded), puis télécharge le .torrent La‑Cale "
+            "via https://la-cale.space/api/torrents/download/{lacale_hash} et l'ajoute à l'instance qBittorrent ciblée. "
+            "Nécessite --qb-host. Supporte --dry-run, --limit, --verbose."
         ),
     )
     parser.add_argument(
@@ -780,22 +790,22 @@ def main(argv: list[str] | None = None) -> int:
         type=str,
         default="calewood",
         metavar="CAT",
-        help='Avec --calewood-archive-take-uploaded-to-qbit: qBittorrent category to set when adding the torrent (default: "calewood").',
+        help='Avec --calewood-archive-take-uploaded-to-qbit : catégorie qBittorrent à appliquer lors de l’ajout (défaut : "calewood").',
     )
     parser.add_argument(
         "--verify-my-archives-in-qbit",
         action="store_true",
-        help="Récupère /api/archive/list?status=my-archives (paged) and list those missing in qBittorrent. Nécessite --qb-host.",
+        help="Récupère /api/archive/list?status=my-archives (paginé) et liste ceux absents dans qBittorrent. Nécessite --qb-host.",
     )
     parser.add_argument(
         "--verify-my-archives-unknown-hash",
         action="store_true",
-        help="Avec --verify-my-archives-in-qbit: list items where lacale_hash is missing/empty (instead of missing in qBittorrent).",
+        help="Avec --verify-my-archives-in-qbit : liste les items sans lacale_hash (au lieu des absents côté qBittorrent).",
     )
     parser.add_argument(
         "--open-lacale-download",
         action="store_true",
-        help="Avec --verify-my-archives-in-qbit: open La-Cale download URL for each missing lacale_hash (https://la-cale.space/api/torrents/download/{hash}).",
+        help="Avec --verify-my-archives-in-qbit : ouvre l’URL de download La‑Cale pour chaque lacale_hash manquant (https://la-cale.space/api/torrents/download/{hash}).",
     )
     parser.add_argument(
         "--download-sharewood-torrent-dir",
@@ -803,8 +813,8 @@ def main(argv: list[str] | None = None) -> int:
         metavar="DIR",
         default="",
         help=(
-            "With --verify-my-archives-in-qbit: for each missing item, download the Sharewood .torrent via "
-            "GET /api/upload/torrent-file/{id} into DIR as {id}.torrent. Supports --dry-run and --verbose."
+            "Avec --verify-my-archives-in-qbit : pour chaque item manquant, télécharge le .torrent Sharewood via "
+            "`GET /api/upload/torrent-file/{id}` dans DIR sous la forme `{id}.torrent`. Supporte --dry-run et --verbose."
         ),
     )
     parser.add_argument(
@@ -822,7 +832,10 @@ def main(argv: list[str] | None = None) -> int:
         "--calewood-upload-take-budget-gb",
         type=int,
         metavar="GB",
-        help="From the low-seeders list (seeders<=1), take uploads in ascending size order until total size reaches GB (floor, never exceeds).",
+        help=(
+            "Depuis la liste `seeders<=1`, prend des uploads (status=selected) en triant par taille croissante "
+            "jusqu'à atteindre un budget `GB` (arrondi à l'inférieur, ne dépasse jamais)."
+        ),
     )
     parser.add_argument(
         "--abandon-low-seeders",
@@ -832,28 +845,38 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--abandon-my-uploading-non-video",
         action="store_true",
-        help="From my-uploading: GET /api/upload/get/{id} and if not category=Vidéos with subcategory Films/Series, POST /api/upload/abandon/{id}.",
+        help=(
+            "Depuis `status=my-uploading` : récupère le détail de chaque upload via `GET /api/upload/get/{id}` et "
+            "abandonne (`POST /api/upload/abandon/{id}`) ceux qui ne sont pas en catégorie `Vidéos` avec sous-catégorie "
+            "`Films`, `Series` ou `Films Animations`."
+        ),
     )
     parser.add_argument(
         "--calewood-upload-take-ready",
         type=int,
         metavar="X",
-        help="From status=selected, take the first X uploads (largest first) whose sharewood_hash exists in qBittorrent with progress==1.0.",
+        help=(
+            "Depuis `status=selected` : prend les X plus gros uploads dont `sharewood_hash` est présent dans qBittorrent "
+            "et complet (progress==1.0)."
+        ),
     )
     parser.add_argument(
         "--calewood-upload-take-owned-complete",
         action="store_true",
-        help="From status=selected, take all uploads whose sharewood_hash exists in qBittorrent on --qb-host with progress==1.0. Nécessite --qb-host. Supporte --dry-run.",
+        help=(
+            "Depuis `status=selected` : prend tous les uploads dont `sharewood_hash` est présent sur `--qb-host` "
+            "et complet (progress==1.0). Nécessite --qb-host. Supporte --dry-run."
+        ),
     )
     parser.add_argument(
         "--calewood-upload-take-abandon-sw",
         action="store_true",
-        help="From status=selected, take all uploads whose torrent comment contains 'Abandon 0 seeder SW' (case-insensitive).",
+        help="Depuis `status=selected` : prend tous les uploads dont le commentaire contient `Abandon 0 seeder SW` (insensible à la casse).",
     )
     parser.add_argument(
         "--calewood-upload-take-zero-seeders",
         action="store_true",
-        help="From status=selected, take all uploads with seeders==0.",
+        help="Depuis `status=selected` : prend tous les uploads avec `seeders==0`.",
     )
     parser.add_argument(
         "--shutup-take-my-storage",
@@ -863,12 +886,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--calewood-upload-with-sator-comment",
         action="store_true",
-        help="Liste uploads whose torrent comment contains 'Sat0r' (case-insensitive).",
+        help="Liste les uploads dont le commentaire contient `Sat0r` (insensible à la casse).",
     )
     parser.add_argument(
         "--calewood-upload-with-sator-le-seed",
         action="store_true",
-        help="Liste uploads whose torrent comment contains 'Sat0r le seed' (case-insensitive).",
+        help="Liste les uploads dont le commentaire contient `Sat0r le seed` (insensible à la casse).",
     )
     # Deprecated arbitre commands: keep behavior for backward-compat but hide from --help.
     _SUPPRESS = argparse.SUPPRESS
@@ -934,7 +957,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--json",
         action="store_true",
-        help="When applicable, output JSON lines instead of a human-readable table.",
+        help="Quand applicable, affiche en JSONL (1 objet JSON par ligne) au lieu d'un tableau lisible.",
     )
     args = parser.parse_args(argv)
 
@@ -942,14 +965,14 @@ def main(argv: list[str] | None = None) -> int:
         pp = str(args.seedbox_passphrase or "").strip() or str(config.CALEWOOD_SEEDBOX_PASSPHRASE or "").strip()
         if not pp:
             raise RuntimeError(
-                "Seedbox passphrase is required. Provide --seedbox-passphrase or set CALEWOOD_SEEDBOX_PASSPHRASE."
+                "Passphrase seedbox requise. Fournis --seedbox-passphrase ou définis CALEWOOD_SEEDBOX_PASSPHRASE."
             )
         return pp
 
     def append_line_once(comment: str, line: str) -> tuple[str, bool]:
         """
-        Append `line` as a new line unless it's already present (case-insensitive exact line match).
-        Returns (new_comment, changed).
+        Ajoute `line` sur une nouvelle ligne sauf si elle est déjà présente (match exact, insensible à la casse).
+        Retourne (new_comment, changed).
         """
         existing_lines = [l.strip() for l in str(comment or "").splitlines() if l.strip()]
         target = str(line or "").strip()
@@ -965,9 +988,9 @@ def main(argv: list[str] | None = None) -> int:
 
     def append_line_once_prefix(comment: str, *, prefix: str, line: str) -> tuple[str, bool]:
         """
-        Append `line` unless an existing line already starts with `prefix` (case-insensitive).
-        Useful when the appended line contains a date/timestamp.
-        Returns (new_comment, changed).
+        Ajoute `line` sauf si une ligne existante commence déjà par `prefix` (insensible à la casse).
+        Utile quand la ligne ajoutée contient une date/heure.
+        Retourne (new_comment, changed).
         """
         existing_lines = [l.strip() for l in str(comment or "").splitlines() if l.strip()]
         p = str(prefix or "").strip().lower()
@@ -1228,7 +1251,7 @@ def main(argv: list[str] | None = None) -> int:
                 if h:
                     qb_hashes.add(h)
         except Exception as e:  # noqa: BLE001
-            raise RuntimeError(f"Failed to list torrents from qBittorrent instance={qb_name}: {e}") from e
+            raise RuntimeError(f"Impossible de lister les torrents qBittorrent (instance={qb_name}) : {e}") from e
 
         missing: list[dict] = []
         unknown_hash: list[dict] = []
