@@ -128,7 +128,7 @@ Build :
 docker build -t calewood-toolbox .
 ```
 
-Exécution (exemple) :
+Exécution (exemple, image locale) :
 
 ```bash
 docker run --rm -it \
@@ -136,6 +136,24 @@ docker run --rm -it \
   -e CALEWOOD_TOKEN="..." \
   -e QBIT_INSTANCES_JSON='[{"name":"box","base_url":"http://qb:8080","username":"user","password":"pass"}]' \
   calewood-toolbox -h
+```
+
+Exécution (exemple, image Docker Hub) :
+
+```bash
+docker run --rm -it \
+  -e CALEWOOD_BASE_URL="https://calewood.n0flow.io/api" \
+  -e CALEWOOD_TOKEN="..." \
+  -e QBIT_INSTANCES_JSON='[{"name":"box","base_url":"http://qb:8080","username":"user","password":"pass"}]' \
+  sat0r/calewood-toolbox -h
+```
+
+Astuce : si tu utilises un `.env`, tu peux le monter et laisser le CLI le charger :
+
+```bash
+docker run --rm -it \
+  -v "$PWD/.env:/app/.env:ro" \
+  sat0r/calewood-toolbox --help
 ```
 
 ## Licence
