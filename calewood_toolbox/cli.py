@@ -45,6 +45,169 @@ def _print_table(headers: tuple[str, ...], rows: list[tuple[str, ...]]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """
+    CLI v2 : sous-commandes pour une aide "en étages".
+
+    Compat : si la commande commence par un flag (ex: `--verify-my-archives-in-qbit`),
+    on bascule en mode legacy (toutes les anciennes options).
+    """
+    argv = argv if argv is not None else sys.argv[1:]
+
+    def build_v2_parser() -> argparse.ArgumentParser:
+        v2 = argparse.ArgumentParser(prog="calewood-toolbox")
+        v2.set_defaults(dry_run=True)
+        dry_group = v2.add_mutually_exclusive_group(required=False)
+        dry_group.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Mode dry-run (par défaut) : n'exécute aucune action modifiant l'état ; affiche seulement ce qui serait fait.",
+        )
+        dry_group.add_argument(
+            "--just-do-it",
+            dest="dry_run",
+            action="store_false",
+            help="Désactive le dry-run et exécute les actions modifiant l’état.",
+        )
+        v2.add_argument(
+            "--verbose",
+            action="store_true",
+            help="Sortie verbeuse (diagnostics).",
+        )
+        v2.add_argument(
+            "--json",
+            action="store_true",
+            help="Quand applicable, affiche en JSONL (1 objet JSON par ligne) au lieu d'un tableau lisible.",
+        )
+        v2.add_argument(
+            "--seedbox-passphrase",
+            type=str,
+            default="",
+            metavar="TEXT",
+            help="Passphrase pour les endpoints Calewood `seedbox-check` (peut aussi être définie via `CALEWOOD_SEEDBOX_PASSPHRASE`).",
+        )
+
+        sub = v2.add_subparsers(dest="cmd", required=True)
+
+        # qbit
+        qbit = sub.add_parser("qbit", help="Commandes qBittorrent.")
+        qsub = qbit.add_subparsers(dest="qbit_cmd", required=True)
+        qget = qsub.add_parser("get", help="Récupère un torrent par hash.")
+        qget.add_argument("--qb-host", required=True, help="Alias d'instance qBittorrent (name).")
+        qget.add_argument("hash", metavar="HASH", help="Hash qBittorrent (infohash).")
+
+        qqueue = qsub.add_parser("dl-queue", help="Statistiques de file de téléchargement.")
+        qqueue.add_argument("--qb-host", required=True, help="Alias d'instance qBittorrent (name).")
+
+        # archives
+        archives = sub.add_parser("archives", help="Archivage legacy (api/archive).")
+        asub = archives.add_subparsers(dest="archives_cmd", required=True)
+        averify = asub.add_parser("verify-my", help="Vérifie que mes archives sont présentes dans qBittorrent.")
+        averify.add_argument("--qb-host", required=True, help="Alias d'instance qBittorrent (name).")
+        averify.add_argument(
+            "--unknown-hash",
+            action="store_true",
+            help="Liste les items sans lacale_hash (au lieu des absents côté qBittorrent).",
+        )
+        averify.add_argument(
+            "--open-lacale-download",
+            action="store_true",
+            help="Ouvre l’URL de download La‑Cale pour chaque lacale_hash manquant (https://la-cale.space/api/torrents/download/{hash}).",
+        )
+        averify.add_argument(
+            "--download-sharewood-torrent-dir",
+            type=str,
+            metavar="DIR",
+            default="",
+            help="Télécharge le .torrent Sharewood via `GET /api/upload/torrent-file/{id}` dans DIR sous la forme `{id}.torrent` (quand applicable).",
+        )
+
+        # pre-archivage
+        pre = sub.add_parser("prearchivage", help="Pré-archivage (archiviste).")
+        psub = pre.add_subparsers(dest="pre_cmd", required=True)
+        ptake = psub.add_parser("take-smallest", help="Prend les N plus petits items disponibles, puis télécharge les .torrent.")
+        ptake.add_argument("n", type=int, metavar="N", help="Nombre maximum d'items à prendre.")
+        ptake.add_argument("--prearchivage-torrent-dir", type=str, default="./downloads", metavar="DIR", help="Dossier de destination des .torrent.")
+        ptake.add_argument("--q", default="", help="Filtre q=... côté API.")
+        ptake.add_argument("--cat", default="", help="Filtre cat=... côté API.")
+        ptake.add_argument("--subcat", default="", help="Filtre subcat=... côté API.")
+        ptake.add_argument("--seeders", type=int, default=0, metavar="N", help="Filtre seeders>=N côté API (0 désactive).")
+
+        # fiches (uploader)
+        fiches = sub.add_parser("fiches", help="Fiches uploader (awaiting_fiche / pré-archivage upload).")
+        fsub = fiches.add_subparsers(dest="f_cmd", required=True)
+        ftake = fsub.add_parser("take-awaiting", help="Prend des fiches en awaiting_fiche selon filtres.")
+        ftake.add_argument("category", metavar="CAT", help="Category exacte (ex: Vidéos, XXX, Audios...).")
+        ftake.add_argument("--subcat", default="", metavar="SUBCAT", help='Sous-catégorie exacte (ex: "Films X").')
+        ftake.add_argument("--name-regex", action="append", default=[], metavar="REGEX", help="Filtre REGEX sur le nom (répétable).")
+        ftake.add_argument("--limit", type=int, default=0, metavar="N", help="Limite le nombre de prises (0 = illimité).")
+
+        return v2
+
+    if not argv or argv[0] in ("-h", "--help"):
+        build_v2_parser().print_help(sys.stderr)
+        return 2
+    if argv[0].startswith("--"):
+        return _legacy_entry(argv)
+
+    v2 = build_v2_parser()
+    v2.set_defaults(dry_run=True)
+    ns = v2.parse_args(argv)
+
+    legacy_argv: list[str] = []
+    if ns.verbose:
+        legacy_argv.append("--verbose")
+    if ns.json:
+        legacy_argv.append("--json")
+    if ns.dry_run:
+        legacy_argv.append("--dry-run")
+    else:
+        legacy_argv.append("--just-do-it")
+    if getattr(ns, "seedbox_passphrase", ""):
+        legacy_argv.extend(["--seedbox-passphrase", str(ns.seedbox_passphrase)])
+
+    if ns.cmd == "qbit" and ns.qbit_cmd == "get":
+        legacy_argv.extend(["--qb-host", ns.qb_host, "--qbit-get-hash", ns.hash])
+        return _legacy_entry(legacy_argv)
+    if ns.cmd == "qbit" and ns.qbit_cmd == "dl-queue":
+        legacy_argv.extend(["--qb-host", ns.qb_host, "--qbit-dl-queue"])
+        return _legacy_entry(legacy_argv)
+    if ns.cmd == "archives" and ns.archives_cmd == "verify-my":
+        legacy_argv.extend(["--qb-host", ns.qb_host, "--verify-my-archives-in-qbit"])
+        if ns.unknown_hash:
+            legacy_argv.append("--verify-my-archives-unknown-hash")
+        if ns.open_lacale_download:
+            legacy_argv.append("--open-lacale-download")
+        if ns.download_sharewood_torrent_dir:
+            legacy_argv.extend(["--download-sharewood-torrent-dir", ns.download_sharewood_torrent_dir])
+        return _legacy_entry(legacy_argv)
+    if ns.cmd == "prearchivage" and ns.pre_cmd == "take-smallest":
+        legacy_argv.extend(["--prearchivage-take-smallest", str(ns.n)])
+        legacy_argv.extend(["--prearchivage-torrent-dir", ns.prearchivage_torrent_dir])
+        if ns.q:
+            legacy_argv.extend(["--prearchivage-q", ns.q])
+        if ns.cat:
+            legacy_argv.extend(["--prearchivage-cat", ns.cat])
+        if ns.subcat:
+            legacy_argv.extend(["--prearchivage-subcat", ns.subcat])
+        if ns.seeders:
+            legacy_argv.extend(["--prearchivage-seeders", str(ns.seeders)])
+        return _legacy_entry(legacy_argv)
+    if ns.cmd == "fiches" and ns.f_cmd == "take-awaiting":
+        legacy_argv.extend(["--fiche-take-awaiting-category", ns.category])
+        for r in ns.name_regex or []:
+            legacy_argv.extend(["--fiche-take-name-regex", r])
+        if ns.subcat:
+            legacy_argv.extend(["--fiche-take-subcat", ns.subcat])
+        if ns.limit:
+            legacy_argv.extend(["--limit", str(ns.limit)])
+        return _legacy_entry(legacy_argv)
+
+    # Should be unreachable because subparsers are required.
+    v2.print_help(sys.stderr)
+    return 2
+
+
+def _legacy_entry(argv: list[str] | None = None) -> int:
     argv = argv if argv is not None else sys.argv[1:]
     parser = argparse.ArgumentParser(prog="calewood-toolbox")
     parser.add_argument(
