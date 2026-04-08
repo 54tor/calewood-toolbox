@@ -548,11 +548,6 @@ def main(argv: list[str] | None = None) -> int:
         help="With --fiche-take-awaiting-category: only include fiches whose name matches REGEX (repeatable).",
     )
     parser.add_argument(
-        "--fiche-take-print-table",
-        action="store_true",
-        help="With --fiche-take-awaiting-category: force printing a table of matched items (ID, CAT, SUBCAT, NAME, HASH). Table is already the default unless --json is used.",
-    )
-    parser.add_argument(
         "--fiche-awaiting-video-subcats",
         action="store_true",
         help="List distinct subcategory values (with counts) for category=='Vidéos' among awaiting_fiche fiches.",
