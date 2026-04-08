@@ -7,7 +7,15 @@ from datetime import datetime
 import re
 from pathlib import Path
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv  # type: ignore
+
+    # Auto-load environment variables from a local .env file when present.
+    # This must run before importing config, since config reads env at import-time.
+    load_dotenv(override=False)
+except Exception:
+    # Keep the CLI usable even if python-dotenv isn't available for some reason.
+    pass
 
 from . import config
 from .calewood import CalewoodClient
@@ -19,10 +27,6 @@ def _env(name: str, default: str) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    # Auto-load environment variables from a local .env file when present.
-    # This keeps the CLI usable without VS Code terminal injection.
-    load_dotenv(override=False)
-
     argv = argv if argv is not None else sys.argv[1:]
     parser = argparse.ArgumentParser(prog="calewood_qbit_sync")
     parser.add_argument(
