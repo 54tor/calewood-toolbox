@@ -27,6 +27,8 @@ calewood-toolbox -h
 
 Astuce : tu peux copier `.env.example` vers `.env` et exporter ces variables dans ton shell.
 
+Le CLI charge automatiquement un fichier `.env` s’il est présent dans le répertoire courant.
+
 ### Instances qBittorrent
 
 Provide instances via JSON:

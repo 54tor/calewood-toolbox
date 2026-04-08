@@ -7,6 +7,8 @@ from datetime import datetime
 import re
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from . import config
 from .calewood import CalewoodClient
 
@@ -17,6 +19,10 @@ def _env(name: str, default: str) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Auto-load environment variables from a local .env file when present.
+    # This keeps the CLI usable without VS Code terminal injection.
+    load_dotenv(override=False)
+
     argv = argv if argv is not None else sys.argv[1:]
     parser = argparse.ArgumentParser(prog="calewood_qbit_sync")
     parser.add_argument(

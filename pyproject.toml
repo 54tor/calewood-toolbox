@@ -9,6 +9,7 @@ description = "Anonymized CLI toolbox for Calewood + qBittorrent automation."
 requires-python = ">=3.11"
 dependencies = [
   "qbittorrent-api>=2024.0.0",
+  "python-dotenv>=1.0.0",
 ]
 
 [project.scripts]
@@ -16,4 +17,3 @@ calewood-toolbox = "calewood_qbit_sync.cli:main"
 
 [tool.setuptools]
 packages = ["calewood_qbit_sync"]
-
