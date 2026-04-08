@@ -658,13 +658,6 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument(
-        "--list-my-upload-prearchivage-prez-limit",
-        type=int,
-        default=0,
-        metavar="N",
-        help="Avec --list-my-upload-prearchivage : limite les opérations coûteuses liées à la prez (0 = illimité).",
-    )
-    parser.add_argument(
         "--list-my-upload-prearchivage-generate-prez",
         action="store_true",
         help="Avec --list-my-upload-prearchivage : pour les items avec PREZ=N, POST /api/upload/pre-archivage/generate-prez/{id}. Supporte --dry-run.",
