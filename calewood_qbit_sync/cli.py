@@ -28,7 +28,7 @@ def _env(name: str, default: str) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     argv = argv if argv is not None else sys.argv[1:]
-    parser = argparse.ArgumentParser(prog="calewood_qbit_sync")
+    parser = argparse.ArgumentParser(prog="calewood-toolbox")
     parser.add_argument(
         "--qb-host",
         type=str,
