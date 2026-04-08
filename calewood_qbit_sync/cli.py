@@ -4202,7 +4202,8 @@ def main(argv: list[str] | None = None) -> int:
         page = 1
         matches: list[dict] = []
         while True:
-            resp = calewood.list_upload_pre_archivage(status="", p=page, per_page=per_page)
+            # Use API-side filtering to reduce pagination and API load.
+            resp = calewood.list_upload_pre_archivage(status=None, cat=cat, p=page, per_page=per_page)
             if not isinstance(resp, dict) or not resp.get("success"):
                 raise RuntimeError(f"Calewood fiche list failed at page {page}: {resp}")
             batch = resp.get("data")
@@ -4213,8 +4214,6 @@ def main(argv: list[str] | None = None) -> int:
                     if not isinstance(it, dict):
                         continue
                     if str(it.get("status") or "").strip() != "awaiting_fiche":
-                        continue
-                    if str(it.get("category") or "").strip() != cat:
                         continue
                     name = str(it.get("name") or "")
                     if regexes and not any(r.search(name) for r in regexes):
