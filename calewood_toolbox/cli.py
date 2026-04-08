@@ -842,7 +842,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--abandon-low-seeders",
         action="store_true",
-        help="From the low-seeders list, append a 'Sat0r le seed <date>' line to comment then POST /api/upload/abandon/{id}.",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--abandon-my-uploading-non-video",

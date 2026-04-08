@@ -16,3 +16,9 @@ Migration recommandée : utiliser les workflows Pré‑archivage (`/api/archive/
 Cette commande est **dépréciée** et masquée de `--help`.
 
 Raison : trop “large” (take massif) et trop risqué pour être gardé en surface.
+
+## `--abandon-low-seeders`
+
+Cette commande est **dépréciée** et masquée de `--help`.
+
+Raison : action destructive (abandon) basée sur des heuristiques (seeders), préférable en script ponctuel.
