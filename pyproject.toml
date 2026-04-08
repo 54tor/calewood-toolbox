@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.scripts]
-calewood-toolbox = "calewood_qbit_sync.cli:main"
+calewood-toolbox = "calewood_toolbox.cli:main"
 
 [tool.setuptools]
-packages = ["calewood_qbit_sync"]
+packages = ["calewood_toolbox"]
