@@ -7,9 +7,6 @@ Ce dépôt ne contient **aucun identifiant** ni **endpoint privé**. Tout se con
 ## Contenu
 
 - CLI Python : `calewood-toolbox` (entrée vers `calewood_qbit_sync`)
-- Scripts Bash :
-  - `check_qbit_vs_calewood.sh`
-  - `check_archiviste.sh`
 
 ## Installation (local)
 
@@ -138,11 +135,6 @@ docker run --rm -it \
   -e QBIT_INSTANCES_JSON='[{"name":"box","base_url":"http://qb:8080","username":"user","password":"pass"}]' \
   calewood-toolbox -h
 ```
-
-## Anonymisation
-
-- `calewood_qbit_sync/config.py` contient uniquement des placeholders et lit la configuration via l’environnement.
-- Ne commit jamais de secrets dans ce dépôt.
 
 ## Licence
 
