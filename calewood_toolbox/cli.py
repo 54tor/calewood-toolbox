@@ -81,12 +81,6 @@ def main(argv: list[str] | None = None) -> int:
         help="Teste l'auth Calewood en appelant GET /api/archive/list?per_page=PER_PAGE et affiche la réponse.",
     )
     parser.add_argument(
-        "--calewood-dump-archivist",
-        type=int,
-        metavar="ARCHIVIST_ID",
-        help="Liste tous les items /api/archive/list dont archivist_id correspond (table par défaut, utilise --json pour JSONL).",
-    )
-    parser.add_argument(
         "--calewood-find-lacale-hash",
         type=str,
         metavar="HASH",
@@ -1394,66 +1388,6 @@ def main(argv: list[str] | None = None) -> int:
                         print(url)
                 else:
                     print(url)
-        return 0
-    if args.calewood_dump_archivist is not None:
-        wanted = int(args.calewood_dump_archivist)
-        per_page = 200
-        max_pages = 500
-        pages = 0
-        matched = 0
-        total_seen = 0
-        matched_items: list[dict] = []
-        for page in range(1, max_pages + 1):
-            pages += 1
-            resp = calewood.list_archives(p=page, per_page=per_page, v1_only=0)
-            if not isinstance(resp, dict) or not resp.get("success"):
-                print(f"Stop at page {page}: non-success response", file=sys.stderr)
-                break
-            items = resp.get("data")
-            meta = resp.get("meta") if isinstance(resp.get("meta"), dict) else {}
-            has_more = bool(meta.get("has_more")) if isinstance(meta, dict) else False
-            total = meta.get("total") if isinstance(meta, dict) else None
-            count = len(items) if isinstance(items, list) else 0
-            total_seen += count
-            if args.verbose:
-                print(f"Visited page {page}: items={count} has_more={has_more} total={total}", file=sys.stderr)
-            if not isinstance(items, list) or not items:
-                break
-
-            for item in items:
-                if not isinstance(item, dict):
-                    continue
-                raw = item.get("archivist_id", item.get("archivistId"))
-                try:
-                    if int(raw) != wanted:
-                        continue
-                except Exception:  # noqa: BLE001
-                    continue
-                matched += 1
-                matched_items.append(item)
-
-            if not has_more:
-                break
-
-        if args.json:
-            for it in matched_items:
-                print(json.dumps(it, ensure_ascii=False))
-        else:
-            headers = ("ID", "STATUS", "SIZE", "LACALE_HASH", "NAME")
-            rows: list[tuple[str, ...]] = []
-            for it in matched_items:
-                rows.append(
-                    (
-                        str(it.get("id", "")),
-                        str(it.get("status", "") or ""),
-                        _clip(it.get("size_raw", "") or "", 12),
-                        _clip(str(it.get("lacale_hash", "") or ""), 40),
-                        _clip(str(it.get("name", "") or ""), 80),
-                    )
-                )
-            _print_table(headers, rows)
-
-        print(f"count={matched} archivist_id={wanted} pages={pages} total_seen={total_seen}", file=sys.stderr)
         return 0
     if args.calewood_find_lacale_hash is not None:
         wanted = str(args.calewood_find_lacale_hash).strip().lower()
