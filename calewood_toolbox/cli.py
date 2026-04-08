@@ -847,11 +847,6 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument(
-        "--calewood-upload-take-abandon-sw",
-        action="store_true",
-        help="Depuis `status=selected` : prend tous les uploads dont le commentaire contient `Abandon 0 seeder SW` (insensible à la casse).",
-    )
-    parser.add_argument(
         "--calewood-upload-take-zero-seeders",
         action="store_true",
         help="Depuis `status=selected` : prend tous les uploads avec `seeders==0`.",
@@ -860,16 +855,6 @@ def main(argv: list[str] | None = None) -> int:
         "--shutup-take-my-storage",
         action="store_true",
         help=argparse.SUPPRESS,
-    )
-    parser.add_argument(
-        "--calewood-upload-with-sator-comment",
-        action="store_true",
-        help="Liste les uploads dont le commentaire contient `Sat0r` (insensible à la casse).",
-    )
-    parser.add_argument(
-        "--calewood-upload-with-sator-le-seed",
-        action="store_true",
-        help="Liste les uploads dont le commentaire contient `Sat0r le seed` (insensible à la casse).",
     )
     # Deprecated arbitre commands: keep behavior for backward-compat but hide from --help.
     _SUPPRESS = argparse.SUPPRESS
@@ -5538,70 +5523,6 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Done. took={taken} skipped={skipped} failed={failed}", file=sys.stderr)
         return 0 if failed == 0 else 1
 
-    if args.calewood_upload_take_abandon_sw:
-        per_page = 200
-        page = 1
-        # Match "Abandon 0 seeder SW" followed by anything (e.g. "SW|Torr9 2026-03-20").
-        pattern = re.compile(r"Abandon 0 seeder SW.*", re.IGNORECASE)
-        taken = 0
-        skipped = 0
-        failed = 0
-        scanned = 0
-        matched = 0
-        while True:
-            # "Uploads dispo" = selected items only (take-able).
-            resp = calewood.list_uploads(status="selected", p=page, per_page=per_page)
-            if not isinstance(resp, dict) or not resp.get("success"):
-                raise RuntimeError(f"Calewood upload list failed at page {page}: {resp}")
-            items = resp.get("data")
-            meta = resp.get("meta") if isinstance(resp.get("meta"), dict) else {}
-            has_more = bool(meta.get("has_more")) if isinstance(meta, dict) else False
-
-            if isinstance(items, list):
-                for it in items:
-                    if not isinstance(it, dict):
-                        continue
-                    scanned += 1
-                    try:
-                        tid = int(it.get("id"))
-                    except Exception:  # noqa: BLE001
-                        skipped += 1
-                        continue
-                    name = str(it.get("name", "") or "").strip()
-                    # Prefer the `comment` field already present in /api/upload/list to avoid extra API calls.
-                    comment = str(it.get("comment", "") or "")
-                    if not comment.strip():
-                        try:
-                            comment = calewood.get_torrent_comment(tid)
-                        except Exception:  # noqa: BLE001
-                            comment = ""
-                    if not pattern.search(str(comment or "")):
-                        skipped += 1
-                        continue
-                    matched += 1
-                    if args.verbose:
-                        print(f"Match {tid}: {name}", file=sys.stderr)
-                    try:
-                        if args.dry_run:
-                            print(f"Dry-run: would take {tid} ({name})")
-                        else:
-                            calewood.take_upload(tid)
-                            print(f"Took {tid}: {name}")
-                        taken += 1
-                    except Exception as e:  # noqa: BLE001
-                        failed += 1
-                        print(f"Failed take {tid} ({name}): {e}", file=sys.stderr)
-
-            if not has_more:
-                break
-            page += 1
-
-        print(
-            f"Done. scanned={scanned} matched={matched} took={taken} skipped={skipped} failed={failed}",
-            file=sys.stderr,
-        )
-        return 0 if failed == 0 else 1
-
     if args.calewood_upload_take_zero_seeders:
         per_page = 200
         page = 1
@@ -5705,73 +5626,6 @@ def main(argv: list[str] | None = None) -> int:
 
         print(f"Done. scanned={scanned} took={taken} skipped={skipped} failed={failed}", file=sys.stderr)
         return 0 if failed == 0 else 1
-
-    if args.calewood_upload_with_sator_comment:
-        per_page = 200
-        page = 1
-        matched: list[dict] = []
-        while True:
-            resp = calewood.list_uploads(status=None, p=page, per_page=per_page)
-            if not isinstance(resp, dict) or not resp.get("success"):
-                raise RuntimeError(f"Calewood upload list failed at page {page}: {resp}")
-            items = resp.get("data")
-            meta = resp.get("meta") if isinstance(resp.get("meta"), dict) else {}
-            has_more = bool(meta.get("has_more")) if isinstance(meta, dict) else False
-            if isinstance(items, list):
-                for it in items:
-                    if not isinstance(it, dict):
-                        continue
-                    if str(it.get("status") or "").strip().lower() == "awaiting_fiche":
-                        continue
-                    try:
-                        tid = int(it.get("id"))
-                    except Exception:  # noqa: BLE001
-                        continue
-                    try:
-                        comment = calewood.get_torrent_comment(tid)
-                    except Exception:  # noqa: BLE001
-                        comment = ""
-                    if "sat0r" not in str(comment).lower():
-                        continue
-                    it["__comment"] = comment
-                    matched.append(it)
-            if not has_more:
-                break
-            page += 1
-
-        if args.json:
-            for it in matched:
-                print(json.dumps(it, ensure_ascii=False))
-            print(f"matched={len(matched)}", file=sys.stderr)
-            return 0
-
-        def clip(s: str, n: int) -> str:
-            s = s or ""
-            return s if len(s) <= n else s[: n - 1] + "…"
-
-        rows = []
-        for it in matched:
-            rows.append(
-                (
-                    str(it.get("id", "")),
-                    str(it.get("status", "") or ""),
-                    str(it.get("seeders", "") or ""),
-                    clip(str(it.get("size_raw", "") or ""), 10),
-                    clip(str(it.get("name", "") or ""), 70),
-                    clip(str(it.get("__comment", "") or "").replace("\n", "\\n"), 60),
-                )
-            )
-        headers = ("ID", "STATUS", "SEED", "SIZE", "NAME", "COMMENT")
-        widths = [len(h) for h in headers]
-        for r in rows:
-            for i, c in enumerate(r):
-                widths[i] = max(widths[i], len(c))
-        print("  ".join(headers[i].ljust(widths[i]) for i in range(len(headers))))
-        print("  ".join(("-" * widths[i]) for i in range(len(headers))))
-        for r in rows:
-            print("  ".join(r[i].ljust(widths[i]) for i in range(len(headers))))
-        print(f"\nmatched={len(matched)}", file=sys.stderr)
-        return 0
 
     if args.arbitre_q:
         # Fixed list params (user request)
@@ -6013,73 +5867,6 @@ def main(argv: list[str] | None = None) -> int:
 
         print(f"Done. checked={checked} took={took} skipped={skipped} failed={failed}", file=sys.stderr)
         return 0 if failed == 0 else 1
-
-    if args.calewood_upload_with_sator_le_seed:
-        per_page = 200
-        page = 1
-        matched: list[dict] = []
-        while True:
-            resp = calewood.list_uploads(status=None, p=page, per_page=per_page)
-            if not isinstance(resp, dict) or not resp.get("success"):
-                raise RuntimeError(f"Calewood upload list failed at page {page}: {resp}")
-            items = resp.get("data")
-            meta = resp.get("meta") if isinstance(resp.get("meta"), dict) else {}
-            has_more = bool(meta.get("has_more")) if isinstance(meta, dict) else False
-            if isinstance(items, list):
-                for it in items:
-                    if not isinstance(it, dict):
-                        continue
-                    if str(it.get("status") or "").strip().lower() == "awaiting_fiche":
-                        continue
-                    try:
-                        tid = int(it.get("id"))
-                    except Exception:  # noqa: BLE001
-                        continue
-                    try:
-                        comment = calewood.get_torrent_comment(tid)
-                    except Exception:  # noqa: BLE001
-                        comment = ""
-                    if "sat0r le seed" not in str(comment).lower():
-                        continue
-                    it["__comment"] = comment
-                    matched.append(it)
-            if not has_more:
-                break
-            page += 1
-
-        if args.json:
-            for it in matched:
-                print(json.dumps(it, ensure_ascii=False))
-            print(f"matched={len(matched)}", file=sys.stderr)
-            return 0
-
-        def clip(s: str, n: int) -> str:
-            s = s or ""
-            return s if len(s) <= n else s[: n - 1] + "…"
-
-        rows = []
-        for it in matched:
-            rows.append(
-                (
-                    str(it.get("id", "")),
-                    str(it.get("status", "") or ""),
-                    str(it.get("seeders", "") or ""),
-                    clip(str(it.get("size_raw", "") or ""), 10),
-                    clip(str(it.get("name", "") or ""), 70),
-                    clip(str(it.get("__comment", "") or "").replace("\n", "\\n"), 60),
-                )
-            )
-        headers = ("ID", "STATUS", "SEED", "SIZE", "NAME", "COMMENT")
-        widths = [len(h) for h in headers]
-        for r in rows:
-            for i, c in enumerate(r):
-                widths[i] = max(widths[i], len(c))
-        print("  ".join(headers[i].ljust(widths[i]) for i in range(len(headers))))
-        print("  ".join(("-" * widths[i]) for i in range(len(headers))))
-        for r in rows:
-            print("  ".join(r[i].ljust(widths[i]) for i in range(len(headers))))
-        print(f"\nmatched={len(matched)}", file=sys.stderr)
-        return 0
 
     if args.process_calewood_list:
         ok = 0
