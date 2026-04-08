@@ -845,11 +845,6 @@ def main(argv: list[str] | None = None) -> int:
         help="From the low-seeders list, append a 'Sat0r le seed <date>' line to comment then POST /api/upload/abandon/{id}.",
     )
     parser.add_argument(
-        "--abandon-my-uploading-with-note",
-        action="store_true",
-        help="From my-uploading, append a 'Sat0r le seed <date>' line to comment then POST /api/upload/abandon/{id} (no qBittorrent checks).",
-    )
-    parser.add_argument(
         "--abandon-my-uploading-non-video",
         action="store_true",
         help="From my-uploading: GET /api/upload/get/{id} and if not category=Vidéos with subcategory Films/Series, POST /api/upload/abandon/{id}.",
@@ -5468,90 +5463,6 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"Failed {tid} ({name}): {e}", file=sys.stderr)
 
         print(f"Done. abandoned={ok} failed={failed}", file=sys.stderr)
-        return 0 if failed == 0 else 1
-
-    if args.abandon_my_uploading_with_note:
-        per_page = 200
-        page = 1
-        uploading: list[dict] = []
-        while True:
-            resp = calewood.list_uploads(status="my-uploading", p=page, per_page=per_page)
-            if not isinstance(resp, dict) or not resp.get("success"):
-                raise RuntimeError(f"Calewood upload list failed at page {page}: {resp}")
-            batch = resp.get("data")
-            meta = resp.get("meta") if isinstance(resp.get("meta"), dict) else {}
-            has_more = bool(meta.get("has_more")) if isinstance(meta, dict) else False
-            if isinstance(batch, list):
-                for it in batch:
-                    if not isinstance(it, dict):
-                        continue
-                    try:
-                        it["id"] = int(it.get("id"))
-                    except Exception:  # noqa: BLE001
-                        continue
-                    uploading.append(it)
-            if not has_more:
-                break
-            page += 1
-
-        today = datetime.now().strftime("%Y-%m-%d")
-        line = f"Sat0r le seed {today}"
-
-        ok = 0
-        failed = 0
-        skipped = 0
-        for it in uploading:
-            tid = int(it["id"])
-            try:
-                name = str(it.get("name", "") or "").strip()
-                sharewood_hash = str(it.get("sharewood_hash", "") or "").strip().lower()
-                lacale_hash = str(it.get("lacale_hash", "") or "").strip().lower()
-                lookup_hash = sharewood_hash or lacale_hash
-                if not lookup_hash:
-                    skipped += 1
-                    if args.verbose:
-                        print(f"Skip {tid} ({name}): missing sharewood_hash/lacale_hash", file=sys.stderr)
-                    continue
-
-                t = None
-                for _, qb in qbit_list:
-                    try:
-                        t = qb.get_torrent_by_hash(lookup_hash)
-                        if t is not None:
-                            break
-                    except Exception:  # noqa: BLE001
-                        continue
-                if not t:
-                    skipped += 1
-                    if args.verbose:
-                        print(f"Skip {tid} ({name}): not in qBittorrent ({lookup_hash})", file=sys.stderr)
-                    continue
-                progress = t.get("progress")
-                if progress not in (1, 1.0):
-                    skipped += 1
-                    if args.verbose:
-                        print(f"Skip {tid} ({name}): not complete progress={progress}", file=sys.stderr)
-                    continue
-
-                old = calewood.get_torrent_comment(tid)
-                new_comment, changed = append_line_once_prefix(old, prefix="Sat0r le seed", line=line)
-                if args.dry_run:
-                    if changed:
-                        print(f"Dry-run: would update comment for {tid} with: {line}")
-                    else:
-                        print(f"Dry-run: comment already contains line for {tid}")
-                    print(f"Dry-run: would abandon upload {tid} ({name}) (qb_progress={progress})")
-                else:
-                    if changed:
-                        calewood.set_torrent_comment(tid, new_comment)
-                    calewood.abandon_upload(tid)
-                    print(f"Abandoned {tid}: {name}")
-                ok += 1
-            except Exception as e:  # noqa: BLE001
-                failed += 1
-                print(f"Failed {tid}: {e}", file=sys.stderr)
-
-        print(f"Done. abandoned={ok} skipped={skipped} failed={failed}", file=sys.stderr)
         return 0 if failed == 0 else 1
 
     if args.abandon_my_uploading_non_video:
