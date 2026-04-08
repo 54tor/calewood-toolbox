@@ -88,7 +88,7 @@ Note : le CLI est en **dry-run par défaut**. Ajoute `--just-do-it` pour exécut
 - `--fiche-take ID` / `--fiche-complete ID --fiche-url-lacale URL` / `--fiche-abandon ID` / `--fiche-blast ID --fiche-reason TEXT` : actions unitaires.
 - `--fiche-take-awaiting-category CAT` : take en masse des fiches `awaiting_fiche` pour `category==CAT` (filtre API `cat=...` + post-filtre regex optionnel `--fiche-take-name-regex`).
   - Filtre : `--fiche-take-subcat "Films X"` pour restreindre à une sous-catégorie exacte.
-  - Sortie : tableau `ID CAT SUBCAT NAME HASH` par défaut (utilise `--json` pour JSONL).
+  - Sortie : tableau `ID STATUS CAT SUBCAT NAME HASH` par défaut (utilise `--json` pour JSONL).
 
 ### qBittorrent (outil / maintenance) (nécessite souvent `--qb-host`)
 

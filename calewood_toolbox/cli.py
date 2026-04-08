@@ -4310,12 +4310,13 @@ def main(argv: list[str] | None = None) -> int:
                     print(json.dumps(it, ensure_ascii=False))
                 print(f"count={len(matches)} category={cat}", file=sys.stderr)
                 return 0
-            headers = ("ID", "CAT", "SUBCAT", "NAME", "HASH")
+            headers = ("ID", "STATUS", "CAT", "SUBCAT", "NAME", "HASH")
             rows: list[tuple[str, ...]] = []
             for it in matches:
                 rows.append(
                     (
                         str(it.get("id", "")),
+                        _clip(str(it.get("status", "") or ""), 14),
                         _clip(str(it.get("category", "") or ""), 10),
                         _clip(str(it.get("subcategory", "") or ""), 16),
                         _clip(str(it.get("name", "") or ""), 70),
