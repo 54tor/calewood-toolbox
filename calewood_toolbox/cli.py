@@ -126,36 +126,27 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--qbit-stalled-zero",
         action="store_true",
-        help="Liste les torrents en téléchargement (amount_left>0) mais à dlspeed==0 et non en file d'attente. Nécessite --qb-host.",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--qbit-stalled-zero-blast",
         action="store_true",
-        help="Pour chaque torrent qBittorrent bloqué à 0, retrouve l'upload Calewood correspondant (sharewood_hash ou lacale_hash) et POST /api/upload/blast/{id}. Nécessite --qb-host. Supporte --dry-run.",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--qbit-stalled-zero-delete",
         action="store_true",
-        help="Avec --qbit-stalled-zero-blast : supprime chaque torrent blasté côté qBittorrent (avec les fichiers). Supporte --dry-run.",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--qbit-stalled-0pct-6h-prearchivage-blast",
         action="store_true",
-        help=(
-            "On a qBittorrent host: find downloads stuck at 0%% for >= 6 hours (progress==0, amount_left>0, dlspeed==0, not queued/paused/checking/meta), "
-            "then POST /api/archive/pre-archivage/blast/{id} (matched via pre-archivage list q=<hash>), and delete the torrent + files from qBittorrent. "
-            "Requires --qb-host. Supports --dry-run, --verbose, and --limit."
-        ),
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--qbit-stalled-4h-prearchivage-blast",
         action="store_true",
-        help=(
-            "On a qBittorrent host: for torrents that belong to my Calewood pre-archiving (status=pre_archiving), "
-            "blast downloads stuck for >= 4 hours even if partially downloaded (amount_left>0, dlspeed==0, not queued/paused/checking/meta, "
-            "last_activity or added_on older than 4h), then POST /api/archive/pre-archivage/blast/{id} and delete torrent+files from qBittorrent. "
-            "Requires --qb-host. Supports --dry-run, --verbose, and --limit."
-        ),
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--qbit-remove-tracker",
