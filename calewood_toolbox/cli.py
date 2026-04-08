@@ -622,11 +622,6 @@ def main(argv: list[str] | None = None) -> int:
         help="Avec --list-my-uploading-seedbox-100 : exclut les items dont le nom matche REGEX (insensible à la casse). Répétable.",
     )
     parser.add_argument(
-        "--list-my-uploading-seedbox-100-move-prearchivage",
-        action="store_true",
-        help="Avec --list-my-uploading-seedbox-100 : pour chaque item matché, POST /api/upload/abandon/{id}, puis POST /api/archive/pre-archivage/take/{id}, puis POST /api/archive/pre-archivage/dl-done/{id}. Supporte --dry-run et --verbose.",
-    )
-    parser.add_argument(
         "--list-my-archive-prearchivage-dl-done",
         action="store_true",
         help="Avec --list-my-archive-prearchivage : pour les items avec `seedbox_progress==1`, POST /api/archive/pre-archivage/dl-done/{id}. Supporte --dry-run.",
@@ -4062,31 +4057,7 @@ def main(argv: list[str] | None = None) -> int:
 
         headers = ("ID", "SIZE", "SUBCAT", "NAME")
         rows: list[tuple[str, str, str, str]] = []
-        moved = 0
-        move_failed = 0
         for it in items_all:
-            if args.list_my_uploading_seedbox_100_move_prearchivage:
-                try:
-                    tid = int(it.get("id"))
-                except Exception:  # noqa: BLE001
-                    tid = -1
-                if tid > 0:
-                    try:
-                        if args.dry_run:
-                            if args.verbose:
-                                print(f"Dry-run: would POST /api/upload/abandon/{tid}", file=sys.stderr)
-                                print(f"Dry-run: would POST /api/archive/pre-archivage/take/{tid}", file=sys.stderr)
-                                print(f"Dry-run: would POST /api/archive/pre-archivage/dl-done/{tid}", file=sys.stderr)
-                        else:
-                            calewood.abandon_upload(tid)
-                            calewood.take_pre_archivage(tid)
-                            calewood.dl_done_pre_archivage(tid)
-                            if args.verbose:
-                                print(f"Moved to pre-archivage: {tid}", file=sys.stderr)
-                        moved += 1
-                    except Exception as e:  # noqa: BLE001
-                        move_failed += 1
-                        print(f"Failed move-prearchivage {tid}: {e}", file=sys.stderr)
             rows.append(
                 (
                     str(it.get("id", "")),
@@ -4103,7 +4074,7 @@ def main(argv: list[str] | None = None) -> int:
         print("  ".join(("-" * widths[i]) for i in range(len(headers))))
         for r in rows:
             print("  ".join(r[i].ljust(widths[i]) for i in range(len(headers))))
-        print(f"\ncount={len(items_all)} moved={moved} move_failed={move_failed}", file=sys.stderr)
+        print(f"\ncount={len(items_all)}", file=sys.stderr)
         return 0
 
     if args.fiche_list is not None:
