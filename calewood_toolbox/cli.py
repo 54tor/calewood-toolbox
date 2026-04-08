@@ -590,7 +590,7 @@ def main(argv: list[str] | None = None) -> int:
         "--fiche-post-lacale",
         type=int,
         metavar="ID",
-        help='POST /api/upload/pre-archivage/post-lacale/{id} with passphrase="***". Supports --dry-run.',
+        help="POST /api/upload/pre-archivage/post-lacale/{id}. Requires --seedbox-passphrase or CALEWOOD_SEEDBOX_PASSPHRASE. Supports --dry-run.",
     )
     parser.add_argument(
         "--revert-my-awaiting-fiche-to-selected",
@@ -3019,7 +3019,7 @@ def main(argv: list[str] | None = None) -> int:
         # Refresh seedbox progress for archives so we can display it.
         if args.verbose:
             print("Triggering /api/archive/seedbox-check", file=sys.stderr)
-        calewood.seedbox_check_archives(passphrase="***")
+        calewood.seedbox_check_archives(passphrase=seedbox_passphrase_required())
 
         per_page = 200
         page = 1
@@ -4335,9 +4335,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.fiche_post_lacale is not None:
         tid = int(args.fiche_post_lacale)
         if args.dry_run:
-            print(f'Dry-run: would POST /api/upload/pre-archivage/post-lacale/{tid} passphrase="***"')
+            print(f"Dry-run: would POST /api/upload/pre-archivage/post-lacale/{tid} passphrase=***")
         else:
-            calewood.post_lacale_upload_pre_archivage(tid, passphrase="***")
+            calewood.post_lacale_upload_pre_archivage(tid, passphrase=seedbox_passphrase_required())
             print(f"Posted fiche to La Cale {tid}")
         return 0
 
