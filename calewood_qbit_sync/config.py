@@ -36,6 +36,7 @@ else:
 # Calewood API
 CALEWOOD_BASE_URL = _env("CALEWOOD_BASE_URL", "https://calewood.n0flow.io/api")
 CALEWOOD_TOKEN = _env("CALEWOOD_TOKEN", "")
+CALEWOOD_SEEDBOX_PASSPHRASE = _env("CALEWOOD_SEEDBOX_PASSPHRASE", "")
 
 # Legacy archives default status
 CALEWOOD_REQUIRED_STATUS = _env("CALEWOOD_REQUIRED_STATUS", "uploaded")

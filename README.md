@@ -24,6 +24,7 @@ calewood-toolbox -h
 
 - `CALEWOOD_BASE_URL` (défaut: `https://calewood.n0flow.io/api`)
 - `CALEWOOD_TOKEN` (Bearer token)
+- `CALEWOOD_SEEDBOX_PASSPHRASE` (requis pour les commandes qui déclenchent `*/seedbox-check`)
 
 Astuce : tu peux copier `.env.example` vers `.env` et exporter ces variables dans ton shell.
 

@@ -150,8 +150,11 @@ class CalewoodClient:
         return self._request_json("POST", f"api/archive/revert-done/{int(archive_id)}")
 
     def seedbox_check_archives(self, *, passphrase: str) -> object:
-        """POST /api/archive/seedbox-check."""
-        return self._request_json("POST", "api/archive/seedbox-check", json_body={"passphrase": str(passphrase)})
+        """POST /api/archive/seedbox-check. Body JSON: {"passphrase":"..."}."""
+        pp = str(passphrase or "").strip()
+        if not pp:
+            raise RuntimeError("passphrase is required for /api/archive/seedbox-check")
+        return self._request_json("POST", "api/archive/seedbox-check", json_body={"passphrase": pp})
 
     def get_archive(self, archive_id: int) -> object:
         url = urllib.parse.urljoin(self.base_url + "/", f"api/archive/get/{int(archive_id)}")
@@ -433,8 +436,11 @@ class CalewoodClient:
         return self._request_json("POST", f"api/upload/blast/{int(upload_id)}", json_body=body)
 
     def seedbox_check_uploads(self, *, passphrase: str) -> object:
-        """POST /api/upload/seedbox-check."""
-        return self._request_json("POST", "api/upload/seedbox-check", json_body={"passphrase": str(passphrase)})
+        """POST /api/upload/seedbox-check. Body JSON: {"passphrase":"..."}."""
+        pp = str(passphrase or "").strip()
+        if not pp:
+            raise RuntimeError("passphrase is required for /api/upload/seedbox-check")
+        return self._request_json("POST", "api/upload/seedbox-check", json_body={"passphrase": pp})
 
     # Endpoint mentioned in raw_api_notes but not used by current CLI:
     # - /api/upload/torrent-file/{id} (implemented as download_upload_torrent_file)

@@ -36,6 +36,13 @@ def main(argv: list[str] | None = None) -> int:
         required=False,
         help="qBittorrent instance name from config.QBIT_INSTANCES.",
     )
+    parser.add_argument(
+        "--seedbox-passphrase",
+        type=str,
+        default="",
+        metavar="TEXT",
+        help="Seedbox passphrase for Calewood seedbox-check endpoints (can also be set via CALEWOOD_SEEDBOX_PASSPHRASE).",
+    )
     parser.set_defaults(dry_run=True)
     dry_group = parser.add_mutually_exclusive_group(required=False)
     dry_group.add_argument(
@@ -321,7 +328,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--seedbox-upload-prearchivage-flow",
         action="store_true",
-        help='Run upload seedbox check (passphrase="***"), then for my-uploading items at seedbox_progress==1: POST /api/upload/abandon/{id}, POST /api/archive/pre-archivage/take/{id}, POST /api/archive/pre-archivage/dl-done/{id}. Supports --dry-run and --verbose.',
+        help="Run upload seedbox check, then for my-uploading items at seedbox_progress==1: POST /api/upload/abandon/{id}, POST /api/archive/pre-archivage/take/{id}, POST /api/archive/pre-archivage/dl-done/{id}. Requires --seedbox-passphrase or CALEWOOD_SEEDBOX_PASSPHRASE. Supports --dry-run and --verbose.",
     )
     parser.add_argument(
         "--seedbox-upload-prearchivage-limit",
@@ -333,12 +340,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--list-my-upload-prearchivage",
         action="store_true",
-        help="List /api/upload/pre-archivage/list?mine=1 across all pages (per_page=200).",
+        help="List my uploader fiches via GET /api/upload/pre-archivage/list?status=my-fiches (paged, per_page=200).",
     )
     parser.add_argument(
         "--list-my-archive-prearchivage",
         action="store_true",
-        help="List /api/archive/pre-archivage/list?mine=1 across all pages (per_page=200).",
+        help="List my pre-archivages via GET /api/archive/pre-archivage/list?status=my-pre-archiving (paged, per_page=200). Triggers /api/archive/seedbox-check.",
     )
     parser.add_argument(
         "--list-archive-prearchivage",
@@ -593,7 +600,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--list-my-uploading-seedbox-100",
         action="store_true",
-        help='Trigger upload seedbox check (passphrase="***"), then list /api/upload/list?status=my-uploading items with seedbox_progress==1 (per_page=200). Supports --verbose.',
+        help="Trigger upload seedbox check, then list /api/upload/list?status=my-uploading items with seedbox_progress==1 (per_page=200). Requires --seedbox-passphrase or CALEWOOD_SEEDBOX_PASSPHRASE. Supports --verbose.",
     )
     parser.add_argument(
         "--list-my-uploading-seedbox-100-exclude",
@@ -624,7 +631,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--prearchivage-confirm-my-post-archiving-100",
         action="store_true",
-        help='Trigger archive seedbox check (passphrase="***"), then for /api/archive/pre-archivage/list?mine=1 items with status=post_archiving and seedbox_progress==1: verify lacale_hash exists in qBittorrent (--qb-host). If missing, open https://la-cale.space/api/torrents/download/{hash}. Otherwise POST /api/archive/pre-archivage/confirm/{id}. Supports --dry-run and --verbose.',
+        help=(
+            "Trigger /api/archive/seedbox-check, then for my /api/archive/pre-archivage/list?status=my-pre-archiving items in status=post_archiving and seedbox_progress==1: "
+            "verify lacale_hash exists in qBittorrent (--qb-host). If missing, open https://la-cale.space/api/torrents/download/{hash}. "
+            "Otherwise POST /api/archive/pre-archivage/confirm/{id}. Requires --seedbox-passphrase or CALEWOOD_SEEDBOX_PASSPHRASE. Supports --dry-run and --verbose."
+        ),
     )
     parser.add_argument(
         "--prearchivage-download-sharewood-torrent-dir",
@@ -929,6 +940,14 @@ def main(argv: list[str] | None = None) -> int:
         help="When applicable, output JSON lines instead of a human-readable table.",
     )
     args = parser.parse_args(argv)
+
+    def seedbox_passphrase_required() -> str:
+        pp = str(args.seedbox_passphrase or "").strip() or str(config.CALEWOOD_SEEDBOX_PASSPHRASE or "").strip()
+        if not pp:
+            raise RuntimeError(
+                "Seedbox passphrase is required. Provide --seedbox-passphrase or set CALEWOOD_SEEDBOX_PASSPHRASE."
+            )
+        return pp
 
     def append_line_once(comment: str, line: str) -> tuple[str, bool]:
         """
@@ -2863,7 +2882,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.seedbox_upload_prearchivage_flow:
         # 1) Trigger seedbox verification for uploads.
-        passphrase = "***"
+        passphrase = seedbox_passphrase_required()
         # Even in dry-run, we still trigger the seedbox check (user request).
         calewood.seedbox_check_uploads(passphrase=passphrase)
         if args.verbose:
@@ -3715,7 +3734,7 @@ def main(argv: list[str] | None = None) -> int:
         if torrent_path is not None:
             torrent_path.mkdir(parents=True, exist_ok=True)
 
-        calewood.seedbox_check_archives(passphrase="***")
+        calewood.seedbox_check_archives(passphrase=seedbox_passphrase_required())
         if args.verbose:
             print("Triggered /api/archive/seedbox-check", file=sys.stderr)
 
@@ -3998,7 +4017,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.list_my_uploading_seedbox_100:
         # Refresh seedbox progress for uploads.
-        calewood.seedbox_check_uploads(passphrase="***")
+        calewood.seedbox_check_uploads(passphrase=seedbox_passphrase_required())
         if args.verbose:
             print("Triggered /api/upload/seedbox-check", file=sys.stderr)
 
