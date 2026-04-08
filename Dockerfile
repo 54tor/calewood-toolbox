@@ -6,7 +6,7 @@ RUN apt-get update \
 
 WORKDIR /app
 COPY pyproject.toml /app/pyproject.toml
-COPY calewood_qbit_sync /app/calewood_qbit_sync
+COPY calewood_toolbox /app/calewood_toolbox
 
 RUN pip install --no-cache-dir .
 

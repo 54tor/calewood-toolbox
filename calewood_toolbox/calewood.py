@@ -32,7 +32,7 @@ class CalewoodClient:
         # Some front proxies (e.g. Cloudflare) may block requests without a User-Agent.
         return {
             "Authorization": self._auth_value(),
-            "User-Agent": "curl/8.0 (calewood_qbit_sync)",
+            "User-Agent": "curl/8.0 (calewood-toolbox)",
             "Accept": "application/json, text/plain;q=0.9, */*;q=0.8",
         }
 
