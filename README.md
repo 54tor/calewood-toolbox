@@ -6,7 +6,7 @@ Ce dépôt ne contient **aucun identifiant** ni **endpoint privé**. Tout se con
 
 ## Contenu
 
-- CLI Python : `calewood-toolbox` (entrée vers `calewood_qbit_sync`)
+- CLI Python : `calewood-toolbox`
 
 ## Installation (local)
 
