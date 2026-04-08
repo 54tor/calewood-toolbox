@@ -48,7 +48,7 @@ calewood-toolbox --qb-host box ...
 
 ## Commandes
 
-Note : le CLI est en **dry-run par défaut**. Ajoute `--no-dry-run` pour exécuter vraiment.
+Note : le CLI est en **dry-run par défaut**. Ajoute `--just-do-it` pour exécuter vraiment.
 
 ### Général
 
@@ -119,10 +119,7 @@ Note : le CLI est en **dry-run par défaut**. Ajoute `--no-dry-run` pour exécut
   - `calewood-toolbox --calewood-archive-uploaded`
 
 - Prendre les `uploaded` (legacy) et les ajouter à qBittorrent (nécessite `--qb-host`) :
-  - `calewood-toolbox --qb-host box --calewood-archive-take-uploaded-to-qbit --no-dry-run --verbose`
-
-- Planche contact (thumbsheet) à partir d’une vidéo locale :
-  - `calewood-toolbox --thumbsheet ./video.mp4 --thumbsheet-out ./thumbsheet.png`
+  - `calewood-toolbox --qb-host box --calewood-archive-take-uploaded-to-qbit --just-do-it --verbose`
 
 ## Docker
 

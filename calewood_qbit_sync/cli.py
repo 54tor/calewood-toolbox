@@ -34,7 +34,7 @@ def main(argv: list[str] | None = None) -> int:
         help="Dry-run mode (default): do not perform mutating actions; only show what would happen.",
     )
     dry_group.add_argument(
-        "--no-dry-run",
+        "--just-do-it",
         dest="dry_run",
         action="store_false",
         help="Disable dry-run and perform mutating actions.",
@@ -504,7 +504,7 @@ def main(argv: list[str] | None = None) -> int:
             "Take all uploader fiches in awaiting_fiche matching a category: "
             "list GET /api/upload/pre-archivage/list (default status=awaiting_fiche, paged per_page=200), "
             "filter category==CAT, then POST "
-            "/api/upload/pre-archivage/take/{id}. Supports --limit, --verbose, and --dry-run/--no-dry-run."
+            "/api/upload/pre-archivage/take/{id}. Supports --limit, --verbose, and --dry-run/--just-do-it."
         ),
     )
     parser.add_argument(
