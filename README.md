@@ -87,6 +87,7 @@ Note : le CLI est en **dry-run par défaut**. Ajoute `--just-do-it` pour exécut
 - `--fiche-list [STATUS]` : liste les fiches (par défaut `awaiting_fiche`).
 - `--fiche-take ID` / `--fiche-complete ID --fiche-url-lacale URL` / `--fiche-abandon ID` / `--fiche-blast ID --fiche-reason TEXT` : actions unitaires.
 - `--fiche-take-awaiting-category CAT` : take en masse des fiches `awaiting_fiche` pour `category==CAT` (filtre API `cat=...` + post-filtre regex optionnel `--fiche-take-name-regex`).
+  - Option : `--fiche-take-print-table` affiche un tableau `ID CAT SUBCAT NAME HASH` avant de take.
 
 ### qBittorrent (outil / maintenance) (nécessite souvent `--qb-host`)
 

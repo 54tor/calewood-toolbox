@@ -532,6 +532,11 @@ def main(argv: list[str] | None = None) -> int:
         help="With --fiche-take-awaiting-category: only include fiches whose name matches REGEX (repeatable).",
     )
     parser.add_argument(
+        "--fiche-take-print-table",
+        action="store_true",
+        help="With --fiche-take-awaiting-category: print a table of matched items (ID, CAT, SUBCAT, NAME, HASH) before taking them.",
+    )
+    parser.add_argument(
         "--fiche-awaiting-video-subcats",
         action="store_true",
         help="List distinct subcategory values (with counts) for category=='Vidéos' among awaiting_fiche fiches.",
@@ -4244,6 +4249,33 @@ def main(argv: list[str] | None = None) -> int:
             if not has_more:
                 break
             page += 1
+
+        if args.fiche_take_print_table and matches and not args.json:
+            def clip(s: str, n: int) -> str:
+                s = s or ""
+                return s if len(s) <= n else s[: n - 1] + "…"
+
+            headers = ("ID", "CAT", "SUBCAT", "NAME", "HASH")
+            rows: list[tuple[str, str, str, str, str]] = []
+            for it in matches:
+                rows.append(
+                    (
+                        str(it.get("id", "")),
+                        clip(str(it.get("category", "") or ""), 10),
+                        clip(str(it.get("subcategory", "") or ""), 16),
+                        clip(str(it.get("name", "") or ""), 70),
+                        clip(str(it.get("sharewood_hash", "") or ""), 40),
+                    )
+                )
+            widths = [len(h) for h in headers]
+            for r in rows:
+                for i, c in enumerate(r):
+                    widths[i] = max(widths[i], len(c))
+            print("  ".join(headers[i].ljust(widths[i]) for i in range(len(headers))))
+            print("  ".join(("-" * widths[i]) for i in range(len(headers))))
+            for r in rows:
+                print("  ".join(r[i].ljust(widths[i]) for i in range(len(headers))))
+            print("", file=sys.stderr)
 
         took = 0
         failed = 0
