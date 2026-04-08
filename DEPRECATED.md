@@ -11,3 +11,8 @@ Toutes les options `--arbitre-*` sont **dépréciées** :
 
 Migration recommandée : utiliser les workflows Pré‑archivage (`/api/archive/pre-archivage/*`) et Fiches uploader (`/api/upload/pre-archivage/*`) selon le besoin.
 
+## `--shutup-take-my-storage`
+
+Cette commande est **dépréciée** et masquée de `--help`.
+
+Raison : trop “large” (take massif) et trop risqué pour être gardé en surface.

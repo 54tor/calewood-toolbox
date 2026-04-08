@@ -878,7 +878,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--shutup-take-my-storage",
         action="store_true",
-        help="Prend all uploads with status=selected (paged).",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--calewood-upload-with-sator-comment",
