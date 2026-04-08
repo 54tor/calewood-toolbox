@@ -156,6 +156,14 @@ docker run --rm -it \
   sat0r/calewood-toolbox --help
 ```
 
+Alternative : tu peux aussi laisser Docker injecter les variables :
+
+```bash
+docker run --rm -it \
+  --env-file .env \
+  sat0r/calewood-toolbox --help
+```
+
 ## Licence
 
 GPL-3.0
