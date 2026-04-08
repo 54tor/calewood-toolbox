@@ -658,16 +658,11 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument(
-        "--list-my-upload-prearchivage-prez-check",
-        action="store_true",
-        help="Avec --list-my-upload-prearchivage : appelle GET /api/upload/content/{id}?type=prez pour calculer la colonne PREZ (Y/N) (plus lent).",
-    )
-    parser.add_argument(
         "--list-my-upload-prearchivage-prez-limit",
         type=int,
         default=0,
         metavar="N",
-        help="Avec --list-my-upload-prearchivage + --list-my-upload-prearchivage-prez-check : limite les checks de contenu (0 = illimité).",
+        help="Avec --list-my-upload-prearchivage : limite les opérations coûteuses liées à la prez (0 = illimité).",
     )
     parser.add_argument(
         "--list-my-upload-prearchivage-generate-prez",
