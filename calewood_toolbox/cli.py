@@ -548,6 +548,13 @@ def main(argv: list[str] | None = None) -> int:
         help="With --fiche-take-awaiting-category: only include fiches whose name matches REGEX (repeatable).",
     )
     parser.add_argument(
+        "--fiche-take-subcat",
+        type=str,
+        default="",
+        metavar="SUBCAT",
+        help='With --fiche-take-awaiting-category: only include fiches whose subcategory matches SUBCAT exactly (example: "Films X").',
+    )
+    parser.add_argument(
         "--fiche-awaiting-video-subcats",
         action="store_true",
         help="List distinct subcategory values (with counts) for category=='Vidéos' among awaiting_fiche fiches.",
@@ -4261,6 +4268,7 @@ def main(argv: list[str] | None = None) -> int:
         cat = str(args.fiche_take_awaiting_category or "").strip()
         if not cat:
             raise RuntimeError("--fiche-take-awaiting-category requires a non-empty category string.")
+        wanted_subcat = str(getattr(args, "fiche_take_subcat", "") or "").strip()
         regexes_raw = [str(r) for r in (args.fiche_take_name_regex or []) if str(r or "").strip()]
         try:
             regexes = [re.compile(r) for r in regexes_raw]
@@ -4282,6 +4290,8 @@ def main(argv: list[str] | None = None) -> int:
                     if not isinstance(it, dict):
                         continue
                     if str(it.get("status") or "").strip() != "awaiting_fiche":
+                        continue
+                    if wanted_subcat and str(it.get("subcategory") or "").strip() != wanted_subcat:
                         continue
                     name = str(it.get("name") or "")
                     if regexes and not any(r.search(name) for r in regexes):
