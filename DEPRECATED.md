@@ -34,3 +34,15 @@ Raison : commande “listing” trop spécifique (seeders<=1) qui a été absorb
 Cette commande est **dépréciée** et masquée de `--help`.
 
 Raison : abandon automatique basé sur un état “stall à 0%”, trop spécifique/risqué pour rester en surface.
+
+## qBittorrent “stalled/blast” (`--qbit-stalled-*`)
+
+Les commandes suivantes sont **dépréciées** et masquées de `--help` :
+
+- `--qbit-stalled-zero`
+- `--qbit-stalled-zero-blast`
+- `--qbit-stalled-zero-delete`
+- `--qbit-stalled-0pct-6h-prearchivage-blast`
+- `--qbit-stalled-4h-prearchivage-blast`
+
+Raison : actions destructives (blast/suppression) basées sur des heuristiques de débit/temps, à garder pour usage ponctuel.
