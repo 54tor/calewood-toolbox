@@ -658,11 +658,6 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument(
-        "--list-my-upload-prearchivage-generate-prez",
-        action="store_true",
-        help="Avec --list-my-upload-prearchivage : pour les items avec PREZ=N, POST /api/upload/pre-archivage/generate-prez/{id}. Supporte --dry-run.",
-    )
-    parser.add_argument(
         "--process-calewood-list",
         action="store_true",
         help="Traite `/api/archive/list` : pour chaque item dont `lacale_hash` est présent dans qBittorrent, exécute POST /api/archive/take/{id} puis POST /api/archive/complete/{id}.",
@@ -2951,27 +2946,7 @@ def main(argv: list[str] | None = None) -> int:
 
         headers = ("ID", "SIZE", "SUBCAT", "NAME")
         rows: list[tuple[str, str, str, str]] = []
-        generated = 0
-        gen_failed = 0
         for it in items_all:
-            if args.list_my_upload_prearchivage_generate_prez:
-                try:
-                    upload_id = int(it.get("id"))
-                except Exception:  # noqa: BLE001
-                    upload_id = -1
-                if upload_id > 0:
-                    try:
-                        if args.dry_run:
-                            if args.verbose:
-                                print(f"Dry-run: would POST /api/upload/pre-archivage/generate-prez/{upload_id}", file=sys.stderr)
-                        else:
-                            calewood.generate_prez_upload_pre_archivage(upload_id)
-                            if args.verbose:
-                                print(f"Generated prez for {upload_id}", file=sys.stderr)
-                        generated += 1
-                    except Exception as e:  # noqa: BLE001
-                        gen_failed += 1
-                        print(f"Failed generate-prez for {upload_id}: {e}", file=sys.stderr)
             rows.append(
                 (
                     str(it.get("id", "")),
@@ -2988,7 +2963,7 @@ def main(argv: list[str] | None = None) -> int:
         print("  ".join(("-" * widths[i]) for i in range(len(headers))))
         for r in rows:
             print("  ".join(r[i].ljust(widths[i]) for i in range(len(headers))))
-        print(f"\ncount={len(items_all)} generated={generated} gen_failed={gen_failed}", file=sys.stderr)
+        print(f"\ncount={len(items_all)}", file=sys.stderr)
         return 0
 
     if args.list_my_archive_prearchivage:
