@@ -27,11 +27,13 @@ def _env(name: str, default: str) -> str:
 
 
 def _clip(s: object, n: int) -> str:
+    """Coupe une chaîne à `n` caractères en ajoutant une ellipse si nécessaire."""
     s = "" if s is None else str(s)
     return s if len(s) <= n else s[: n - 1] + "…"
 
 
 def _print_table(headers: tuple[str, ...], rows: list[tuple[str, ...]]) -> None:
+    """Affiche un tableau aligné (sortie humaine) à partir de `headers` + `rows`."""
     widths = [len(h) for h in headers]
     for r in rows:
         for i, c in enumerate(r):
