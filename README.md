@@ -107,10 +107,6 @@ Note : le CLI est en **dry-run par défaut**. Ajoute `--no-dry-run` pour exécut
 - `--fs-orphans ROOT` : compare FS vs qBittorrent (multi-instances possibles), sort les chemins orphelins.
 - `--fs-ignore PATH` / `--path-map FROM=TO` / `--managed-ignore-prefix PREFIX` : réglages de scan.
 
-### Média
-
-- `--thumbsheet VIDEO` : mosaïque 3×3 (10–90%) via ffmpeg.
-
 ## Exemples rapides
 
 - Aide :
