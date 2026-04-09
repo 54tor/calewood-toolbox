@@ -15,15 +15,7 @@ Ce dépôt ne contient **aucun identifiant** ni **endpoint privé**. Tout se con
 
 Image recommandée : `sat0r/calewood-toolbox:latest`
 
-Exécution (exemple) :
-
-```bash
-docker run --rm -it \
-  --env-file .env \
-  sat0r/calewood-toolbox:latest --help
-```
-
-Exécution (exemple, image Docker Hub) :
+Exécution (image Docker Hub) :
 
 ```bash
 docker run --rm -it \
