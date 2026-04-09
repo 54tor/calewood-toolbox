@@ -155,7 +155,7 @@ def main(argv: list[str] | None = None) -> int:
             help="Nombre de pages à scanner (per_page=200). 0 = toutes les pages (plus lent).",
         )
         utake = usub.add_parser("take-selected", help="Repère des uploads en status=selected, puis les prend.")
-        utake.add_argument("--cat", required=True, metavar="CAT", help="Category exacte à cibler (ex: Vidéos, XXX, Audios...).")
+        utake.add_argument("--cat", default="", metavar="CAT", help="Category exacte à cibler (optionnel). Ex: Vidéos, XXX, Audios...")
         utake.add_argument("--subcat", default="", metavar="SUBCAT", help="Sous-catégorie exacte à cibler (paramètre API `subcat`).")
         utake.add_argument("--q", default="", metavar="Q", help="Recherche côté API (paramètre `q`, recherche par nom).")
         utake.add_argument(
@@ -227,9 +227,7 @@ def main(argv: list[str] | None = None) -> int:
             token=_env("CALEWOOD_TOKEN", config.CALEWOOD_TOKEN),
         )
 
-        cat = str(ns.cat or "").strip()
-        if not cat:
-            raise RuntimeError("--cat est obligatoire.")
+        cat = str(ns.cat or "").strip() or None
 
         include_res: list[re.Pattern[str]] = []
         for pat in (ns.name_regex or []):
