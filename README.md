@@ -7,6 +7,9 @@ Ce dépôt ne contient **aucun identifiant** ni **endpoint privé**. Tout se con
 ## Contenu
 
 - CLI Python : `calewood-toolbox`
+- Docs :
+  - `docs/API_CONTRACTS.md` (contrats / endpoints utilisés)
+  - `docs/SCENARIO_prendre_uploads_selected.md` (exemple de scénario)
 
 ## Docker (recommandé)
 
