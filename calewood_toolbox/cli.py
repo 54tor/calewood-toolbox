@@ -49,9 +49,14 @@ def _qbit_from_instance(name: str):
 
 
 def _calewood_client() -> CalewoodClient:
+    token = _env("CALEWOOD_TOKEN", config.CALEWOOD_TOKEN).strip()
+    if not token:
+        raise RuntimeError(
+            "CALEWOOD_TOKEN manquant. Fournissez-le via `.env` (local) ou `--env-file .env` (Docker)."
+        )
     return CalewoodClient(
         base_url=_env("CALEWOOD_BASE_URL", config.CALEWOOD_BASE_URL),
-        token=_env("CALEWOOD_TOKEN", config.CALEWOOD_TOKEN),
+        token=token,
     )
 
 
