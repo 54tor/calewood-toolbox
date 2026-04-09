@@ -46,14 +46,14 @@ def _print_table(headers: tuple[str, ...], rows: list[tuple[str, ...]]) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     """
-    CLI v2 : sous-commandes pour une aide "en étages".
+    CLI : sous-commandes pour une aide "en étages".
     """
     argv = argv if argv is not None else sys.argv[1:]
 
-    def build_v2_parser() -> argparse.ArgumentParser:
-        v2 = argparse.ArgumentParser(prog="calewood-toolbox")
-        v2.set_defaults(dry_run=True)
-        dry_group = v2.add_mutually_exclusive_group(required=False)
+    def build_parser() -> argparse.ArgumentParser:
+        parser = argparse.ArgumentParser(prog="calewood-toolbox")
+        parser.set_defaults(dry_run=True)
+        dry_group = parser.add_mutually_exclusive_group(required=False)
         dry_group.add_argument(
             "--dry-run",
             action="store_true",
@@ -65,17 +65,17 @@ def main(argv: list[str] | None = None) -> int:
             action="store_false",
             help="Désactive le dry-run et exécute les actions modifiant l’état.",
         )
-        v2.add_argument(
+        parser.add_argument(
             "--verbose",
             action="store_true",
             help="Sortie verbeuse (diagnostics).",
         )
-        v2.add_argument(
+        parser.add_argument(
             "--json",
             action="store_true",
             help="Quand applicable, affiche en JSONL (1 objet JSON par ligne) au lieu d'un tableau lisible.",
         )
-        v2.add_argument(
+        parser.add_argument(
             "--seedbox-passphrase",
             type=str,
             default="",
@@ -83,7 +83,7 @@ def main(argv: list[str] | None = None) -> int:
             help="Passphrase pour les endpoints Calewood `seedbox-check` (peut aussi être définie via `CALEWOOD_SEEDBOX_PASSPHRASE`).",
         )
 
-        sub = v2.add_subparsers(dest="cmd", required=True)
+        sub = parser.add_subparsers(dest="cmd", required=True)
 
         # qbit
         qbit = sub.add_parser("qbit", help="Commandes qBittorrent.")
@@ -203,19 +203,19 @@ def main(argv: list[str] | None = None) -> int:
         )
         utake.add_argument("--limit", type=int, default=0, metavar="N", help="Limite le nombre de prises (0 = illimité).")
 
-        return v2
+        return parser
 
     if not argv or argv[0] in ("-h", "--help"):
-        build_v2_parser().print_help(sys.stderr)
+        build_parser().print_help(sys.stderr)
         return 2
     if argv[0].startswith("--"):
         # One-shot project: no hidden alias/legacy entrypoints.
-        build_v2_parser().print_help(sys.stderr)
+        build_parser().print_help(sys.stderr)
         return 2
 
-    v2 = build_v2_parser()
-    v2.set_defaults(dry_run=True)
-    ns = v2.parse_args(argv)
+    parser = build_parser()
+    parser.set_defaults(dry_run=True)
+    ns = parser.parse_args(argv)
 
     from .calewood import CalewoodClient  # lazy import
     from .qbit import QbitClient  # lazy import
@@ -658,7 +658,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"scanned={scanned} cats={len(counts)} pages={page}", file=sys.stderr)
         return 0
 
-    v2.print_help(sys.stderr)
+    parser.print_help(sys.stderr)
     return 2
 
 
