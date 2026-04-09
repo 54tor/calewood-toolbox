@@ -86,13 +86,13 @@ Note : le CLI est en **dry-run par défaut**. Ajoute `--just-do-it` pour exécut
 
 Le CLI est organisé en **sous‑commandes** (aide “en étages”, uniquement les options compatibles).
 
-### Général (v2)
+### Général
 
 - `-h` : aide complète.
 - `--verbose` : logs détaillés.
 - `--json` : sortie JSON (quand supporté par la commande).
 
-### CLI v2 (sous‑commandes)
+### Sous‑commandes
 
 #### Uploads
 
