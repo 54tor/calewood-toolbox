@@ -189,7 +189,7 @@ def main(argv: list[str] | None = None) -> int:
         page = 1
         matched: list[dict] = []
         while True:
-            resp = calewood.list_uploads(status="selected", p=page, per_page=per_page)
+            resp = calewood.list_uploads(status="selected", cat=cat, p=page, per_page=per_page)
             if not isinstance(resp, dict) or not resp.get("success"):
                 raise RuntimeError(f"Calewood upload list failed at page {page}: {resp}")
             items = resp.get("data")
@@ -198,8 +198,6 @@ def main(argv: list[str] | None = None) -> int:
             if isinstance(items, list):
                 for it in items:
                     if not isinstance(it, dict):
-                        continue
-                    if str(it.get("category") or "").strip() != cat:
                         continue
                     name = str(it.get("name") or "")
                     if not match_name(name):
