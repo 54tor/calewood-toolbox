@@ -251,6 +251,8 @@ def main(argv: list[str] | None = None) -> int:
         per_page = 200
         page = 1
         matched: list[dict] = []
+        took = 0
+        failed = 0
         api_q = str(ns.q or "").strip() or None
         api_subcat = str(ns.subcat or "").strip() or None
         api_sort = str(ns.sort or "").strip() or None
@@ -284,16 +286,38 @@ def main(argv: list[str] | None = None) -> int:
                     name = str(it.get("name") or "")
                     if not match_name(name):
                         continue
+                    # Take immediately so --limit always means "N prises" (pas juste N items matchés).
+                    if tid_i > 0:
+                        try:
+                            if ns.dry_run:
+                                if ns.verbose:
+                                    print(f"Dry-run: would POST /api/upload/take/{tid_i} ({name})", file=sys.stderr)
+                            else:
+                                calewood.take_upload(tid_i)
+                                took += 1
+                                if ns.verbose:
+                                    print(f"Pris: {tid_i} {name}", file=sys.stderr)
+                        except Exception as e:  # noqa: BLE001
+                            failed += 1
+                            if ns.verbose:
+                                print(f"Échec take {tid_i}: {e}", file=sys.stderr)
+
+                    # Keep for table/json output.
                     matched.append(it)
-                    if ns.limit and len(matched) >= int(ns.limit):
-                        has_more = False
-                        break
+
+                    if ns.limit:
+                        limit_i = int(ns.limit)
+                        if not ns.dry_run:
+                            if took >= limit_i:
+                                has_more = False
+                                break
+                        else:
+                            if len(matched) >= limit_i:
+                                has_more = False
+                                break
             if not has_more:
                 break
             page += 1
-
-        took = 0
-        failed = 0
         if ns.json:
             for it in matched:
                 print(json.dumps(it, ensure_ascii=False))
@@ -303,20 +327,7 @@ def main(argv: list[str] | None = None) -> int:
             rows: list[tuple[str, str, str, str, str, str, str]] = []
             for it in matched:
                 tid = str(it.get("id", "") or "")
-                action = ""
-                if tid:
-                    try:
-                        if ns.dry_run:
-                            action = "dry-run"
-                        else:
-                            calewood.take_upload(int(tid))
-                            took += 1
-                            action = "took"
-                    except Exception as e:  # noqa: BLE001
-                        failed += 1
-                        action = "failed"
-                        if ns.verbose:
-                            print(f"Échec take {tid}: {e}", file=sys.stderr)
+                action = "dry-run" if ns.dry_run else "pris"
                 rows.append(
                     (
                         tid,
