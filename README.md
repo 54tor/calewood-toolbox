@@ -1,6 +1,6 @@
 # calewood-toolbox
 
-Boîte à outils CLI (anonymisée) pour automatiser des workflows entre une instance Calewood et une ou plusieurs instances qBittorrent.
+Boîte à outils CLI pour automatiser des workflows entre une instance Calewood et une ou plusieurs instances qBittorrent.
 
 Ce dépôt ne contient **aucun identifiant** ni **endpoint privé**. Tout se configure via variables d’environnement à l’exécution.
 
@@ -9,7 +9,7 @@ Ce dépôt ne contient **aucun identifiant** ni **endpoint privé**. Tout se con
 - CLI Python : `calewood-toolbox`
 - Docs :
   - `docs/API_CONTRACTS.md` (contrats / endpoints utilisés)
-  - `docs/SCENARIO_prendre_uploads_selected.md` (exemple de scénario)
+  - `docs/SCENARIO_prendre_uploads_selected.md`
 
 ## Docker (recommandé)
 
@@ -25,9 +25,7 @@ Exécution (exemple, image locale) :
 
 ```bash
 docker run --rm -it \
-  -e CALEWOOD_BASE_URL="https://calewood.n0flow.io/api" \
-  -e CALEWOOD_TOKEN="..." \
-  -e QBIT_INSTANCES_JSON='[{"name":"box","base_url":"http://qb:8080","username":"user","password":"pass"}]' \
+  --env-file .env \
   calewood-toolbox --help
 ```
 
@@ -35,26 +33,26 @@ Exécution (exemple, image Docker Hub) :
 
 ```bash
 docker run --rm -it \
+  --env-file .env \
+  sat0r/calewood-toolbox:latest --help
+```
+
+Alternative : injection directe de variables d’environnement :
+
+```bash
+docker run --rm -it \
   -e CALEWOOD_BASE_URL="https://calewood.n0flow.io/api" \
   -e CALEWOOD_TOKEN="..." \
   -e QBIT_INSTANCES_JSON='[{"name":"box","base_url":"http://qb:8080","username":"user","password":"pass"}]' \
-  sat0r/calewood-toolbox --help
+  sat0r/calewood-toolbox:latest --help
 ```
 
-Astuce : si tu utilises un `.env`, tu peux le monter et laisser le CLI le charger :
+Alternative : monter un fichier `.env` dans le conteneur :
 
 ```bash
 docker run --rm -it \
   -v "$PWD/.env:/app/.env:ro" \
-  sat0r/calewood-toolbox --help
-```
-
-Alternative : tu peux aussi laisser Docker injecter les variables :
-
-```bash
-docker run --rm -it \
-  --env-file .env \
-  sat0r/calewood-toolbox --help
+  sat0r/calewood-toolbox:latest --help
 ```
 
 ## Configuration
