@@ -181,6 +181,8 @@ class CalewoodClient:
         *,
         status: str | None = None,
         q: str | None = None,
+        cat: str | None = None,
+        subcat: str | None = None,
         p: int = 1,
         per_page: int = 50,
     ) -> object:
@@ -190,6 +192,10 @@ class CalewoodClient:
             params["status"] = str(status).strip()
         if q is not None and str(q).strip() != "":
             params["q"] = str(q).strip()
+        if cat is not None and str(cat).strip() != "":
+            params["cat"] = str(cat).strip()
+        if subcat is not None and str(subcat).strip() != "":
+            params["subcat"] = str(subcat).strip()
         url = url + "?" + urllib.parse.urlencode(params)
         req = urllib.request.Request(url, headers=self._headers(), method="GET")
         try:
