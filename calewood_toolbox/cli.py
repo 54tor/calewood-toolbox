@@ -145,6 +145,7 @@ def main(argv: list[str] | None = None) -> int:
         usub = uploads.add_subparsers(dest="u_cmd", required=True)
         utake = usub.add_parser("take-selected", help="Repère des uploads en status=selected, puis les prend.")
         utake.add_argument("--cat", required=True, metavar="CAT", help="Category exacte à cibler (ex: Vidéos, XXX, Audios...).")
+        utake.add_argument("--subcat", default="", metavar="SUBCAT", help="Sous-catégorie exacte à cibler (paramètre API `subcat`).")
         utake.add_argument("--q", default="", metavar="Q", help="Recherche côté API (paramètre `q`, recherche par nom).")
         utake.add_argument(
             "--sort",
@@ -218,12 +219,14 @@ def main(argv: list[str] | None = None) -> int:
         page = 1
         matched: list[dict] = []
         api_q = str(ns.q or "").strip() or None
+        api_subcat = str(ns.subcat or "").strip() or None
         api_sort = str(ns.sort or "").strip() or None
         api_order = str(ns.order or "").strip() or None
         while True:
             resp = calewood.list_uploads(
                 status="selected",
                 cat=cat,
+                subcat=api_subcat,
                 q=api_q,
                 sort=api_sort,
                 order=api_order,
