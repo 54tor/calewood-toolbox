@@ -15,12 +15,12 @@ Ce dépôt ne contient **aucun identifiant** ni **endpoint privé**. Tout se con
 
 Image recommandée : `sat0r/calewood-toolbox:latest`
 
-Exécution (exemple, image locale buildée) :
+Exécution (exemple) :
 
 ```bash
 docker run --rm -it \
   --env-file .env \
-  calewood-toolbox --help
+  sat0r/calewood-toolbox:latest --help
 ```
 
 Exécution (exemple, image Docker Hub) :
@@ -55,6 +55,14 @@ docker run --rm -it \
 
 ```bash
 docker build -t calewood-toolbox .
+```
+
+Puis exécuter l'image locale buildée :
+
+```bash
+docker run --rm -it \
+  --env-file .env \
+  calewood-toolbox --help
 ```
 
 ### Python (local)
