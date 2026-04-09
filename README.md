@@ -198,7 +198,7 @@ calewood-toolbox uploads take-selected \
 - Archivage classique : éléments disponibles à prendre (`status=uploaded`) :
   - `calewood-toolbox --calewood-archive-uploaded`
 
-- Prendre les `uploaded` (legacy) et les ajouter à qBittorrent (nécessite `--qb-host`) :
+- Prendre les `uploaded` (classique) et les ajouter à qBittorrent (nécessite `--qb-host`) :
   - `calewood-toolbox --qb-host box --calewood-archive-take-uploaded-to-qbit --just-do-it --verbose`
 
 ## Annexe : exécution locale
