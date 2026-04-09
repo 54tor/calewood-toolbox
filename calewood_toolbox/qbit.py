@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import io
-
-import qbittorrentapi
+from typing import Any
 
 
 @dataclass
@@ -11,9 +10,15 @@ class QbitClient:
     base_url: str
     username: str
     password: str
-    _client_cached: qbittorrentapi.Client | None = field(default=None, init=False, repr=False)
+    _client_cached: Any | None = field(default=None, init=False, repr=False)
 
-    def _client(self) -> qbittorrentapi.Client:
+    def _client(self) -> Any:
+        try:
+            import qbittorrentapi  # type: ignore
+        except ModuleNotFoundError as e:  # pragma: no cover
+            raise RuntimeError(
+                "Dépendance manquante: installez `qbittorrent-api` (ex: `pip install qbittorrent-api`)."
+            ) from e
         if self._client_cached is not None:
             return self._client_cached
         client = qbittorrentapi.Client(
