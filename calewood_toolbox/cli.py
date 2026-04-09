@@ -167,6 +167,19 @@ def main(argv: list[str] | None = None) -> int:
             metavar="REGEX",
             help="Exclut les uploads dont le nom matche REGEX (répétable, insensible à la casse).",
         )
+        utake.add_argument(
+            "--exclude-id",
+            action="append",
+            default=[],
+            metavar="ID",
+            help="Exclut un ID d'upload (répétable).",
+        )
+        utake.add_argument(
+            "--exclude-ids",
+            default="",
+            metavar="ID1,ID2,...",
+            help="Exclut une liste d'IDs (séparateurs acceptés : virgules, espaces, tabulations, retours ligne).",
+        )
         utake.add_argument("--limit", type=int, default=0, metavar="N", help="Limite le nombre de prises (0 = illimité).")
 
         return v2
@@ -208,6 +221,26 @@ def main(argv: list[str] | None = None) -> int:
             except re.error as e:
                 raise RuntimeError(f"Regex invalide (--exclude-regex) : {pat!r} : {e}") from e
 
+        excluded_ids: set[int] = set()
+        for raw in (ns.exclude_id or []):
+            if raw is None:
+                continue
+            s = str(raw).strip()
+            if not s:
+                continue
+            try:
+                excluded_ids.add(int(s))
+            except Exception as e:  # noqa: BLE001
+                raise RuntimeError(f"ID invalide (--exclude-id) : {s!r} : {e}") from e
+        if str(ns.exclude_ids or "").strip():
+            for part in re.split(r"[^0-9]+", str(ns.exclude_ids)):
+                if not part:
+                    continue
+                try:
+                    excluded_ids.add(int(part))
+                except Exception as e:  # noqa: BLE001
+                    raise RuntimeError(f"ID invalide (--exclude-ids) : {part!r} : {e}") from e
+
         def match_name(name: str) -> bool:
             if include_res and not any(r.search(name or "") for r in include_res):
                 return False
@@ -241,6 +274,12 @@ def main(argv: list[str] | None = None) -> int:
             if isinstance(items, list):
                 for it in items:
                     if not isinstance(it, dict):
+                        continue
+                    try:
+                        tid_i = int(it.get("id"))
+                    except Exception:  # noqa: BLE001
+                        tid_i = -1
+                    if tid_i > 0 and tid_i in excluded_ids:
                         continue
                     name = str(it.get("name") or "")
                     if not match_name(name):
