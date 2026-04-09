@@ -143,6 +143,17 @@ def main(argv: list[str] | None = None) -> int:
 
         uploads = sub.add_parser("uploads", help="Uploads (api/upload).")
         usub = uploads.add_subparsers(dest="u_cmd", required=True)
+        ucats = usub.add_parser(
+            "cats-selected",
+            help="Affiche les catégories disponibles pour les uploads en status=selected (avec comptage).",
+        )
+        ucats.add_argument(
+            "--limit-pages",
+            type=int,
+            default=1,
+            metavar="N",
+            help="Nombre de pages à scanner (per_page=200). 0 = toutes les pages (plus lent).",
+        )
         utake = usub.add_parser("take-selected", help="Repère des uploads en status=selected, puis les prend.")
         utake.add_argument("--cat", required=True, metavar="CAT", help="Category exacte à cibler (ex: Vidéos, XXX, Audios...).")
         utake.add_argument("--subcat", default="", metavar="SUBCAT", help="Sous-catégorie exacte à cibler (paramètre API `subcat`).")
@@ -356,6 +367,44 @@ def main(argv: list[str] | None = None) -> int:
                 file=sys.stderr,
             )
         return 0 if failed == 0 else 1
+
+    if ns.cmd == "uploads" and ns.u_cmd == "cats-selected":
+        from .calewood import CalewoodClient  # lazy import
+
+        calewood = CalewoodClient(
+            base_url=_env("CALEWOOD_BASE_URL", config.CALEWOOD_BASE_URL),
+            token=_env("CALEWOOD_TOKEN", config.CALEWOOD_TOKEN),
+        )
+
+        per_page = 200
+        page = 1
+        max_pages = int(ns.limit_pages)
+        counts: dict[str, int] = {}
+        scanned = 0
+        while True:
+            resp = calewood.list_uploads(status="selected", p=page, per_page=per_page)
+            if not isinstance(resp, dict) or not resp.get("success"):
+                raise RuntimeError(f"Calewood upload list failed at page {page}: {resp}")
+            items = resp.get("data")
+            meta = resp.get("meta") if isinstance(resp.get("meta"), dict) else {}
+            has_more = bool(meta.get("has_more")) if isinstance(meta, dict) else False
+            if isinstance(items, list):
+                for it in items:
+                    if not isinstance(it, dict):
+                        continue
+                    scanned += 1
+                    cat = str(it.get("category") or "").strip() or "(vide)"
+                    counts[cat] = counts.get(cat, 0) + 1
+            if not has_more:
+                break
+            page += 1
+            if max_pages > 0 and page > max_pages:
+                break
+
+        rows = [(k, str(v)) for k, v in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0].lower()))]
+        _print_table(("CAT", "COUNT"), rows)
+        print(f"scanned={scanned} cats={len(counts)} pages={page}", file=sys.stderr)
+        return 0
 
     legacy_argv: list[str] = []
     if ns.verbose:
