@@ -11,17 +11,29 @@ Ce dépôt ne contient **aucun identifiant** ni **endpoint privé**. Tout se con
   - `docs/API_CONTRACTS.md` (contrats / endpoints utilisés)
   - `docs/SCENARIO_prendre_uploads_selected.md`
 
-## Docker (recommandé)
+## Installation
+
+### Docker (recommandé)
 
 Image recommandée : `sat0r/calewood-toolbox:latest`
-
-Build :
 
 ```bash
 docker build -t calewood-toolbox .
 ```
 
-Exécution (exemple, image locale) :
+### Python (local)
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+pip install -U pip
+pip install -e .
+calewood-toolbox --help
+```
+
+## Exécution Docker
+
+Exécution (exemple, image locale buildée) :
 
 ```bash
 docker run --rm -it \
@@ -198,16 +210,6 @@ calewood-toolbox uploads take-selected \
 
 - Prendre les `uploaded` (classique) et les ajouter à qBittorrent (nécessite `--qb-host`) :
   - `calewood-toolbox --qb-host box --calewood-archive-take-uploaded-to-qbit --just-do-it --verbose`
-
-## Annexe : exécution locale
-
-```bash
-python -m venv .venv
-. .venv/bin/activate
-pip install -U pip
-pip install -e .
-calewood-toolbox --help
-```
 
 ## Licence
 
