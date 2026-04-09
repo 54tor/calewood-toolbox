@@ -159,6 +159,13 @@ def main(argv: list[str] | None = None) -> int:
             help="Ordre côté API (paramètre `order`) : asc ou desc.",
         )
         utake.add_argument("--name-regex", action="append", default=[], metavar="REGEX", help="Filtre REGEX sur le nom (répétable).")
+        utake.add_argument(
+            "--exclude-regex",
+            action="append",
+            default=[],
+            metavar="REGEX",
+            help="Exclut les uploads dont le nom matche REGEX (répétable, insensible à la casse).",
+        )
         utake.add_argument("--limit", type=int, default=0, metavar="N", help="Limite le nombre de prises (0 = illimité).")
 
         return v2
@@ -186,17 +193,26 @@ def main(argv: list[str] | None = None) -> int:
         if not cat:
             raise RuntimeError("--cat est obligatoire.")
 
-        exclude_res: list[re.Pattern[str]] = []
+        include_res: list[re.Pattern[str]] = []
         for pat in (ns.name_regex or []):
             try:
-                exclude_res.append(re.compile(str(pat), re.IGNORECASE))
+                include_res.append(re.compile(str(pat), re.IGNORECASE))
             except re.error as e:
                 raise RuntimeError(f"Regex invalide (--name-regex) : {pat!r} : {e}") from e
 
+        exclude_res: list[re.Pattern[str]] = []
+        for pat in (ns.exclude_regex or []):
+            try:
+                exclude_res.append(re.compile(str(pat), re.IGNORECASE))
+            except re.error as e:
+                raise RuntimeError(f"Regex invalide (--exclude-regex) : {pat!r} : {e}") from e
+
         def match_name(name: str) -> bool:
-            if not exclude_res:
-                return True
-            return any(r.search(name or "") for r in exclude_res)
+            if include_res and not any(r.search(name or "") for r in include_res):
+                return False
+            if exclude_res and any(r.search(name or "") for r in exclude_res):
+                return False
+            return True
 
         per_page = 200
         page = 1
