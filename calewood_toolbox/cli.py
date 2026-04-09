@@ -253,6 +253,9 @@ def main(argv: list[str] | None = None) -> int:
         matched: list[dict] = []
         took = 0
         failed = 0
+        attempted = 0
+        scanned = 0
+        excluded = 0
         api_q = str(ns.q or "").strip() or None
         api_subcat = str(ns.subcat or "").strip() or None
         api_sort = str(ns.sort or "").strip() or None
@@ -277,17 +280,21 @@ def main(argv: list[str] | None = None) -> int:
                 for it in items:
                     if not isinstance(it, dict):
                         continue
+                    scanned += 1
                     try:
                         tid_i = int(it.get("id"))
                     except Exception:  # noqa: BLE001
                         tid_i = -1
                     if tid_i > 0 and tid_i in excluded_ids:
+                        excluded += 1
                         continue
                     name = str(it.get("name") or "")
                     if not match_name(name):
                         continue
-                    # Take immediately so --limit always means "N prises" (pas juste N items matchés).
+                    # Take immédiatement. On n'affiche au maximum que N lignes, mais on peut scanner plus
+                    # pour atteindre N prises effectives (en cas d'exclusions/erreurs).
                     if tid_i > 0:
+                        attempted += 1
                         try:
                             if ns.dry_run:
                                 if ns.verbose:
@@ -302,8 +309,9 @@ def main(argv: list[str] | None = None) -> int:
                             if ns.verbose:
                                 print(f"Échec take {tid_i}: {e}", file=sys.stderr)
 
-                    # Keep for table/json output.
-                    matched.append(it)
+                    # Keep for table/json output (max N lignes)
+                    if not ns.limit or len(matched) < int(ns.limit):
+                        matched.append(it)
 
                     if ns.limit:
                         limit_i = int(ns.limit)
@@ -312,7 +320,7 @@ def main(argv: list[str] | None = None) -> int:
                                 has_more = False
                                 break
                         else:
-                            if len(matched) >= limit_i:
+                            if attempted >= limit_i:
                                 has_more = False
                                 break
             if not has_more:
@@ -321,7 +329,10 @@ def main(argv: list[str] | None = None) -> int:
         if ns.json:
             for it in matched:
                 print(json.dumps(it, ensure_ascii=False))
-            print(f"matched={len(matched)}", file=sys.stderr)
+            print(
+                f"scanned={scanned} excluded={excluded} matched_out={len(matched)} attempted={attempted} took={took} failed={failed}",
+                file=sys.stderr,
+            )
         else:
             headers = ("ID", "CAT", "SUBCAT", "SIZE", "SEED", "NAME", "ACTION")
             rows: list[tuple[str, str, str, str, str, str, str]] = []
@@ -340,7 +351,10 @@ def main(argv: list[str] | None = None) -> int:
                     )
                 )
             _print_table(headers, rows)
-            print(f"matched={len(matched)} took={took} failed={failed}", file=sys.stderr)
+            print(
+                f"scanned={scanned} excluded={excluded} matched_out={len(matched)} attempted={attempted} took={took} failed={failed}",
+                file=sys.stderr,
+            )
         return 0 if failed == 0 else 1
 
     legacy_argv: list[str] = []
