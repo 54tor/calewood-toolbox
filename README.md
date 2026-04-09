@@ -11,27 +11,9 @@ Ce dépôt ne contient **aucun identifiant** ni **endpoint privé**. Tout se con
   - `docs/API_CONTRACTS.md` (contrats / endpoints utilisés)
   - `docs/SCENARIO_prendre_uploads_selected.md`
 
-## Installation
-
-### Docker (recommandé)
+## Exécution (Docker)
 
 Image recommandée : `sat0r/calewood-toolbox:latest`
-
-```bash
-docker build -t calewood-toolbox .
-```
-
-### Python (local)
-
-```bash
-python -m venv .venv
-. .venv/bin/activate
-pip install -U pip
-pip install -e .
-calewood-toolbox --help
-```
-
-## Exécution Docker
 
 Exécution (exemple, image locale buildée) :
 
@@ -65,6 +47,24 @@ Alternative : monter un fichier `.env` dans le conteneur :
 docker run --rm -it \
   -v "$PWD/.env:/app/.env:ro" \
   sat0r/calewood-toolbox:latest --help
+```
+
+## Annexe : installation
+
+### Docker (build local)
+
+```bash
+docker build -t calewood-toolbox .
+```
+
+### Python (local)
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+pip install -U pip
+pip install -e .
+calewood-toolbox --help
 ```
 
 ## Configuration
