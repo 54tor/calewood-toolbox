@@ -43,21 +43,63 @@ export QBIT_INSTANCES_JSON='[
 Puis exécute avec :
 
 ```bash
-calewood-toolbox --qb-host box ...
+calewood-toolbox qbit dl-queue --qb-host box
 ```
 
 ## Commandes
 
 Note : le CLI est en **dry-run par défaut**. Ajoute `--just-do-it` pour exécuter vraiment.
 
-### Général
+Le CLI dispose de deux modes :
+
+- **CLI v2 (recommandé)** : commandes en sous‑commandes (aide “en étages”, uniquement les options compatibles).
+- **CLI legacy** : anciennes options `--...` (toujours supportées) pour compatibilité, mais **non affichées** dans l’aide principale.
+
+### Général (v2)
 
 - `-h` : aide complète.
 - `--verbose` : logs détaillés.
-- `--limit N` : limite le nombre d’items traités/listés.
 - `--json` : sortie JSON (quand supporté par la commande).
 
-### Calewood (recherche / listing)
+### CLI v2 (sous‑commandes)
+
+#### Uploads
+
+- `uploads take-selected` : liste `/api/upload/list?status=selected` et prend (`POST /api/upload/take/{id}`) les uploads qui matchent.
+  - filtres côté API : `--cat`, `--subcat`, `--q`, `--sort`, `--order`
+  - filtres côté Python : `--name-regex` (inclure) / `--exclude-regex` (exclure)
+  - `--limit` : limite le nombre de prises
+
+Exemple :
+
+```bash
+calewood-toolbox uploads take-selected \
+  --cat "ebook" \
+  --q "Asimov" \
+  --sort size_bytes --order desc \
+  --exclude-regex "tome\\s*1" \
+  --limit 10 \
+  --just-do-it --verbose
+```
+
+#### Archives (legacy /api/archive)
+
+- `archives verify-my --qb-host NAME` : compare `my-archives` vs qBittorrent et affiche les manquants.
+
+#### Pré‑archivage (Archiviste)
+
+- `prearchivage take-smallest N` : prend les N plus petits items disponibles et télécharge les `.torrent`.
+
+#### qBittorrent
+
+- `qbit get --qb-host NAME HASH` : récupère un torrent par hash.
+- `qbit dl-queue --qb-host NAME` : stats file de téléchargement.
+
+### CLI legacy (anciennes options `--...`)
+
+Les anciennes commandes restent exécutables pour compatibilité (par exemple `--verify-my-archives-in-qbit`), mais elles ne sont plus affichées dans `--help` (voir `DEPRECATED.md`).
+
+### Calewood legacy (recherche / listing)
 
 - `--calewood-list PER_PAGE` : test d’accès API Calewood.
 - `--calewood-torrent-q Q` : recherche via `GET /api/torrent/list?q=...` (paginé).
@@ -112,10 +154,10 @@ Note : le CLI est en **dry-run par défaut**. Ajoute `--just-do-it` pour exécut
 ## Exemples rapides
 
 - Aide :
-  - `calewood-toolbox -h`
+  - `calewood-toolbox --help`
 
 - File d’attente / backlog qBittorrent :
-  - `calewood-toolbox --qb-host box --qbit-dl-queue`
+  - `calewood-toolbox qbit dl-queue --qb-host box`
 
 - Archivage legacy : éléments disponibles à prendre (`status=uploaded`) :
   - `calewood-toolbox --calewood-archive-uploaded`
