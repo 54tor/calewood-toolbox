@@ -49,7 +49,7 @@ def main(argv: list[str] | None = None) -> int:
     CLI v2 : sous-commandes pour une aide "en étages".
 
     Compat : si la commande commence par un flag (ex: `--verify-my-archives-in-qbit`),
-    on bascule en mode legacy (toutes les anciennes options).
+    on bascule sur l'ancien parseur d'options.
     """
     argv = argv if argv is not None else sys.argv[1:]
 

@@ -50,10 +50,7 @@ calewood-toolbox qbit dl-queue --qb-host box
 
 Note : le CLI est en **dry-run par défaut**. Ajoute `--just-do-it` pour exécuter vraiment.
 
-Le CLI dispose de deux modes :
-
-- **CLI v2 (recommandé)** : commandes en sous‑commandes (aide “en étages”, uniquement les options compatibles).
-- **CLI legacy** : anciennes options `--...` (toujours supportées) pour compatibilité, mais **non affichées** dans l’aide principale.
+Le CLI est organisé en **sous‑commandes** (aide “en étages”, uniquement les options compatibles).
 
 ### Général (v2)
 
@@ -95,9 +92,9 @@ calewood-toolbox uploads take-selected \
 - `qbit get --qb-host NAME HASH` : récupère un torrent par hash.
 - `qbit dl-queue --qb-host NAME` : stats file de téléchargement.
 
-### CLI legacy (anciennes options `--...`)
+### Dépréciations
 
-Les anciennes commandes restent exécutables pour compatibilité (par exemple `--verify-my-archives-in-qbit`), mais elles ne sont plus affichées dans `--help` (voir `DEPRECATED.md`).
+`DEPRECATED.md` liste les tâches/options qui ont existé à un moment (mémoire + historique), sans forcément être encore exposées.
 
 ### Calewood legacy (recherche / listing)
 
