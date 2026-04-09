@@ -8,14 +8,48 @@ Ce dépôt ne contient **aucun identifiant** ni **endpoint privé**. Tout se con
 
 - CLI Python : `calewood-toolbox`
 
-## Installation (local)
+## Docker (recommandé)
+
+Build :
 
 ```bash
-python -m venv .venv
-. .venv/bin/activate
-pip install -U pip
-pip install -e .
-calewood-toolbox -h
+docker build -t calewood-toolbox .
+```
+
+Exécution (exemple, image locale) :
+
+```bash
+docker run --rm -it \
+  -e CALEWOOD_BASE_URL="https://calewood.n0flow.io/api" \
+  -e CALEWOOD_TOKEN="..." \
+  -e QBIT_INSTANCES_JSON='[{"name":"box","base_url":"http://qb:8080","username":"user","password":"pass"}]' \
+  calewood-toolbox --help
+```
+
+Exécution (exemple, image Docker Hub) :
+
+```bash
+docker run --rm -it \
+  -e CALEWOOD_BASE_URL="https://calewood.n0flow.io/api" \
+  -e CALEWOOD_TOKEN="..." \
+  -e QBIT_INSTANCES_JSON='[{"name":"box","base_url":"http://qb:8080","username":"user","password":"pass"}]' \
+  sat0r/calewood-toolbox --help
+```
+
+Astuce : si tu utilises un `.env`, tu peux le monter et laisser le CLI le charger :
+
+```bash
+docker run --rm -it \
+  -v "$PWD/.env:/app/.env:ro" \
+  sat0r/calewood-toolbox --help
+```
+
+Alternative : tu peux aussi laisser Docker injecter les variables :
+
+```bash
+docker run --rm -it \
+  --env-file .env \
+  sat0r/calewood-toolbox --help
 ```
 
 ## Configuration
@@ -79,7 +113,7 @@ calewood-toolbox uploads take-selected \
   --just-do-it --verbose
 ```
 
-#### Archives (legacy /api/archive)
+#### Archives (classique /api/archive)
 
 - `archives verify-my --qb-host NAME` : compare `my-archives` vs qBittorrent et affiche les manquants.
 
@@ -162,48 +196,14 @@ calewood-toolbox uploads take-selected \
 - Prendre les `uploaded` (legacy) et les ajouter à qBittorrent (nécessite `--qb-host`) :
   - `calewood-toolbox --qb-host box --calewood-archive-take-uploaded-to-qbit --just-do-it --verbose`
 
-## Docker
-
-Build :
+## Annexe : exécution locale
 
 ```bash
-docker build -t calewood-toolbox .
-```
-
-Exécution (exemple, image locale) :
-
-```bash
-docker run --rm -it \
-  -e CALEWOOD_BASE_URL="https://calewood.n0flow.io/api" \
-  -e CALEWOOD_TOKEN="..." \
-  -e QBIT_INSTANCES_JSON='[{"name":"box","base_url":"http://qb:8080","username":"user","password":"pass"}]' \
-  calewood-toolbox -h
-```
-
-Exécution (exemple, image Docker Hub) :
-
-```bash
-docker run --rm -it \
-  -e CALEWOOD_BASE_URL="https://calewood.n0flow.io/api" \
-  -e CALEWOOD_TOKEN="..." \
-  -e QBIT_INSTANCES_JSON='[{"name":"box","base_url":"http://qb:8080","username":"user","password":"pass"}]' \
-  sat0r/calewood-toolbox -h
-```
-
-Astuce : si tu utilises un `.env`, tu peux le monter et laisser le CLI le charger :
-
-```bash
-docker run --rm -it \
-  -v "$PWD/.env:/app/.env:ro" \
-  sat0r/calewood-toolbox --help
-```
-
-Alternative : tu peux aussi laisser Docker injecter les variables :
-
-```bash
-docker run --rm -it \
-  --env-file .env \
-  sat0r/calewood-toolbox --help
+python -m venv .venv
+. .venv/bin/activate
+pip install -U pip
+pip install -e .
+calewood-toolbox --help
 ```
 
 ## Licence
