@@ -141,6 +141,13 @@ def main(argv: list[str] | None = None) -> int:
         ftake.add_argument("--name-regex", action="append", default=[], metavar="REGEX", help="Filtre REGEX sur le nom (répétable).")
         ftake.add_argument("--limit", type=int, default=0, metavar="N", help="Limite le nombre de prises (0 = illimité).")
 
+        uploads = sub.add_parser("uploads", help="Uploads (api/upload).")
+        usub = uploads.add_subparsers(dest="u_cmd", required=True)
+        utake = usub.add_parser("take-selected", help="Repère des uploads en status=selected, puis les prend.")
+        utake.add_argument("--cat", required=True, metavar="CAT", help="Category exacte à cibler (ex: Vidéos, XXX, Audios...).")
+        utake.add_argument("--name-regex", action="append", default=[], metavar="REGEX", help="Filtre REGEX sur le nom (répétable).")
+        utake.add_argument("--limit", type=int, default=0, metavar="N", help="Limite le nombre de prises (0 = illimité).")
+
         return v2
 
     if not argv or argv[0] in ("-h", "--help"):
@@ -152,6 +159,98 @@ def main(argv: list[str] | None = None) -> int:
     v2 = build_v2_parser()
     v2.set_defaults(dry_run=True)
     ns = v2.parse_args(argv)
+
+    if ns.cmd == "uploads" and ns.u_cmd == "take-selected":
+        # No legacy equivalent: implement directly in v2.
+        from .calewood import CalewoodClient  # lazy import
+
+        calewood = CalewoodClient(
+            base_url=_env("CALEWOOD_BASE_URL", config.CALEWOOD_BASE_URL),
+            token=_env("CALEWOOD_TOKEN", config.CALEWOOD_TOKEN),
+        )
+
+        cat = str(ns.cat or "").strip()
+        if not cat:
+            raise RuntimeError("--cat est obligatoire.")
+
+        exclude_res: list[re.Pattern[str]] = []
+        for pat in (ns.name_regex or []):
+            try:
+                exclude_res.append(re.compile(str(pat), re.IGNORECASE))
+            except re.error as e:
+                raise RuntimeError(f"Regex invalide (--name-regex) : {pat!r} : {e}") from e
+
+        def match_name(name: str) -> bool:
+            if not exclude_res:
+                return True
+            return any(r.search(name or "") for r in exclude_res)
+
+        per_page = 200
+        page = 1
+        matched: list[dict] = []
+        while True:
+            resp = calewood.list_uploads(status="selected", p=page, per_page=per_page)
+            if not isinstance(resp, dict) or not resp.get("success"):
+                raise RuntimeError(f"Calewood upload list failed at page {page}: {resp}")
+            items = resp.get("data")
+            meta = resp.get("meta") if isinstance(resp.get("meta"), dict) else {}
+            has_more = bool(meta.get("has_more")) if isinstance(meta, dict) else False
+            if isinstance(items, list):
+                for it in items:
+                    if not isinstance(it, dict):
+                        continue
+                    if str(it.get("category") or "").strip() != cat:
+                        continue
+                    name = str(it.get("name") or "")
+                    if not match_name(name):
+                        continue
+                    matched.append(it)
+                    if ns.limit and len(matched) >= int(ns.limit):
+                        has_more = False
+                        break
+            if not has_more:
+                break
+            page += 1
+
+        took = 0
+        failed = 0
+        if ns.json:
+            for it in matched:
+                print(json.dumps(it, ensure_ascii=False))
+            print(f"matched={len(matched)}", file=sys.stderr)
+        else:
+            headers = ("ID", "CAT", "SUBCAT", "SIZE", "SEED", "NAME", "ACTION")
+            rows: list[tuple[str, str, str, str, str, str, str]] = []
+            for it in matched:
+                tid = str(it.get("id", "") or "")
+                action = ""
+                if tid:
+                    try:
+                        if ns.dry_run:
+                            action = "dry-run"
+                        else:
+                            calewood.take_upload(int(tid))
+                            took += 1
+                            action = "took"
+                    except Exception as e:  # noqa: BLE001
+                        failed += 1
+                        action = "failed"
+                        if ns.verbose:
+                            print(f"Échec take {tid}: {e}", file=sys.stderr)
+                rows.append(
+                    (
+                        tid,
+                        str(it.get("category") or ""),
+                        str(it.get("subcategory") or ""),
+                        str(it.get("size_raw") or ""),
+                        str(it.get("seeders") or ""),
+                        str(it.get("name") or ""),
+                        action,
+                    )
+                )
+            print_table(headers, rows)
+            print(f"matched={len(matched)} took={took} failed={failed}", file=sys.stderr)
+        return 0 if failed == 0 else 1
 
     legacy_argv: list[str] = []
     if ns.verbose:
