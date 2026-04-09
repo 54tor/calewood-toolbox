@@ -13,6 +13,8 @@ Ce dépôt ne contient **aucun identifiant** ni **endpoint privé**. Tout se con
 
 ## Docker (recommandé)
 
+Image recommandée : `sat0r/calewood-toolbox:latest`
+
 Build :
 
 ```bash
