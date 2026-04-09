@@ -145,6 +145,19 @@ def main(argv: list[str] | None = None) -> int:
         usub = uploads.add_subparsers(dest="u_cmd", required=True)
         utake = usub.add_parser("take-selected", help="Repère des uploads en status=selected, puis les prend.")
         utake.add_argument("--cat", required=True, metavar="CAT", help="Category exacte à cibler (ex: Vidéos, XXX, Audios...).")
+        utake.add_argument("--q", default="", metavar="Q", help="Recherche côté API (paramètre `q`, recherche par nom).")
+        utake.add_argument(
+            "--sort",
+            default="",
+            metavar="COL",
+            help="Tri côté API (paramètre `sort`) : name, size_bytes, category, seeders, selected_at, uploaded_at, archived_at.",
+        )
+        utake.add_argument(
+            "--order",
+            default="",
+            metavar="asc|desc",
+            help="Ordre côté API (paramètre `order`) : asc ou desc.",
+        )
         utake.add_argument("--name-regex", action="append", default=[], metavar="REGEX", help="Filtre REGEX sur le nom (répétable).")
         utake.add_argument("--limit", type=int, default=0, metavar="N", help="Limite le nombre de prises (0 = illimité).")
 
@@ -188,8 +201,19 @@ def main(argv: list[str] | None = None) -> int:
         per_page = 200
         page = 1
         matched: list[dict] = []
+        api_q = str(ns.q or "").strip() or None
+        api_sort = str(ns.sort or "").strip() or None
+        api_order = str(ns.order or "").strip() or None
         while True:
-            resp = calewood.list_uploads(status="selected", cat=cat, p=page, per_page=per_page)
+            resp = calewood.list_uploads(
+                status="selected",
+                cat=cat,
+                q=api_q,
+                sort=api_sort,
+                order=api_order,
+                p=page,
+                per_page=per_page,
+            )
             if not isinstance(resp, dict) or not resp.get("success"):
                 raise RuntimeError(f"Calewood upload list failed at page {page}: {resp}")
             items = resp.get("data")

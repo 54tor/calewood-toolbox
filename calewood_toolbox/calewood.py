@@ -183,6 +183,8 @@ class CalewoodClient:
         q: str | None = None,
         cat: str | None = None,
         subcat: str | None = None,
+        sort: str | None = None,
+        order: str | None = None,
         p: int = 1,
         per_page: int = 50,
     ) -> object:
@@ -196,6 +198,10 @@ class CalewoodClient:
             params["cat"] = str(cat).strip()
         if subcat is not None and str(subcat).strip() != "":
             params["subcat"] = str(subcat).strip()
+        if sort is not None and str(sort).strip() != "":
+            params["sort"] = str(sort).strip()
+        if order is not None and str(order).strip() != "":
+            params["order"] = str(order).strip()
         url = url + "?" + urllib.parse.urlencode(params)
         req = urllib.request.Request(url, headers=self._headers(), method="GET")
         try:
