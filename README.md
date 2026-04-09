@@ -103,7 +103,7 @@ calewood-toolbox uploads take-selected \
 - `--calewood-find-sharewood-hash HASH` : trouve un torrent Calewood par `sharewood_hash` (via `/api/torrent/list?q=`).
 - `--calewood-find-lacale-hash HASH` : trouve un legacy archive par `lacale_hash` (via `/api/archive/list`).
 
-### Archivage legacy (/api/archive/*)
+### Archivage classique (/api/archive/*)
 
 - `--calewood-archive-uploaded` : liste les items `status=uploaded` (à prendre).
 - `--calewood-archive-take-uploaded` : `POST /api/archive/take/{id}` sur tous les `uploaded` (respecte `--limit`).
@@ -156,7 +156,7 @@ calewood-toolbox uploads take-selected \
 - File d’attente / backlog qBittorrent :
   - `calewood-toolbox qbit dl-queue --qb-host box`
 
-- Archivage legacy : éléments disponibles à prendre (`status=uploaded`) :
+- Archivage classique : éléments disponibles à prendre (`status=uploaded`) :
   - `calewood-toolbox --calewood-archive-uploaded`
 
 - Prendre les `uploaded` (legacy) et les ajouter à qBittorrent (nécessite `--qb-host`) :

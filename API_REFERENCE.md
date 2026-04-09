@@ -40,7 +40,7 @@ La plupart des `list` utilisent :
   - Body JSON : `{ "passphrase": "..." }` (**obligatoire**)
   - Effet : met à jour `seedbox_progress` côté API pour vos torrents en `uploading`.
 
-### Archivage legacy
+### Archivage classique
 
 - `GET /api/archive/list?...`
   - Filtres supportés (selon l’API) : `status`, `q`, `cat`, `subcat`, `seeders`, `min_size`, `max_size`, `sort`, `order`, `v1_only`
@@ -87,4 +87,3 @@ La plupart des `list` utilisent :
 - `POST /api/upload/pre-archivage/verify-prez/{id}`
 - `POST /api/upload/pre-archivage/post-lacale/{id}`
   - Body JSON : `{ "passphrase": "..." }` (**obligatoire**)
-

@@ -47,9 +47,6 @@ def _print_table(headers: tuple[str, ...], rows: list[tuple[str, ...]]) -> None:
 def main(argv: list[str] | None = None) -> int:
     """
     CLI v2 : sous-commandes pour une aide "en étages".
-
-    Compat : si la commande commence par un flag (ex: `--verify-my-archives-in-qbit`),
-    on bascule sur l'ancien parseur d'options.
     """
     argv = argv if argv is not None else sys.argv[1:]
 
@@ -99,7 +96,7 @@ def main(argv: list[str] | None = None) -> int:
         qqueue.add_argument("--qb-host", required=True, help="Alias d'instance qBittorrent (name).")
 
         # archives
-        archives = sub.add_parser("archives", help="Archivage legacy (api/archive).")
+        archives = sub.add_parser("archives", help="Archivage classique (api/archive).")
         asub = archives.add_subparsers(dest="archives_cmd", required=True)
         averify = asub.add_parser("verify-my", help="Vérifie que mes archives sont présentes dans qBittorrent.")
         averify.add_argument("--qb-host", required=True, help="Alias d'instance qBittorrent (name).")
@@ -212,20 +209,242 @@ def main(argv: list[str] | None = None) -> int:
         build_v2_parser().print_help(sys.stderr)
         return 2
     if argv[0].startswith("--"):
-        return _legacy_entry(argv)
+        # One-shot project: no hidden alias/legacy entrypoints.
+        build_v2_parser().print_help(sys.stderr)
+        return 2
 
     v2 = build_v2_parser()
     v2.set_defaults(dry_run=True)
     ns = v2.parse_args(argv)
 
-    if ns.cmd == "uploads" and ns.u_cmd == "take-selected":
-        # No legacy equivalent: implement directly in v2.
-        from .calewood import CalewoodClient  # lazy import
+    from .calewood import CalewoodClient  # lazy import
+    from .qbit import QbitClient  # lazy import
 
-        calewood = CalewoodClient(
+    def qbit_from_instance(name: str) -> QbitClient:
+        n = (name or "").strip().lower()
+        for inst in getattr(config, "QBIT_INSTANCES", []):
+            if not isinstance(inst, dict):
+                continue
+            if str(inst.get("name", "")).strip().lower() != n:
+                continue
+            base_url = str(inst.get("base_url", "")).strip()
+            username = str(inst.get("username", "")).strip()
+            password = str(inst.get("password", "")).strip()
+            if not base_url or not username or not password:
+                raise RuntimeError(f"Instance qBittorrent incomplète: {name!r}")
+            return QbitClient(base_url=base_url, username=username, password=password)
+        raise RuntimeError(f"Instance qBittorrent inconnue: {name!r}")
+
+    def calewood_client() -> CalewoodClient:
+        return CalewoodClient(
             base_url=_env("CALEWOOD_BASE_URL", config.CALEWOOD_BASE_URL),
             token=_env("CALEWOOD_TOKEN", config.CALEWOOD_TOKEN),
         )
+
+    if ns.cmd == "qbit" and ns.qbit_cmd == "get":
+        qb = qbit_from_instance(ns.qb_host)
+        t = qb.get_torrent_by_hash(str(ns.hash))
+        print(json.dumps(t, ensure_ascii=False, indent=2))
+        return 0
+
+    if ns.cmd == "qbit" and ns.qbit_cmd == "dl-queue":
+        qb = qbit_from_instance(ns.qb_host)
+        torrents = qb.list_torrents(category=None)
+        queued = 0
+        left_bytes = 0
+        for t in torrents:
+            st = str(t.get("state", "") or "")
+            if st in ("queuedDL", "stalledDL", "downloading", "metaDL", "allocating"):
+                queued += 1
+                try:
+                    left_bytes += int(t.get("amount_left") or 0)
+                except Exception:  # noqa: BLE001
+                    pass
+        left_gib = left_bytes / (1024**3)
+        print(f"instance={str(ns.qb_host).lower()} queuedDL={queued} left_gib={left_gib:.2f}")
+        return 0
+
+    if ns.cmd == "archives" and ns.archives_cmd == "verify-my":
+        calewood = calewood_client()
+        qb = qbit_from_instance(ns.qb_host)
+        qb_hashes = {str(t.get("hash", "")).lower() for t in qb.list_torrents(category=None) if str(t.get("hash", "")).strip()}
+
+        per_page = 200
+        page = 1
+        missing_rows: list[tuple[str, str, str, str]] = []
+        unknown_rows: list[tuple[str, str, str, str]] = []
+        total = 0
+        total_gib = 0.0
+        while True:
+            resp = calewood.list_archives(status="my-archives", p=page, per_page=per_page, v1_only=0)
+            if not isinstance(resp, dict) or not resp.get("success"):
+                raise RuntimeError(f"Calewood archive list failed at page {page}: {resp}")
+            items = resp.get("data")
+            meta = resp.get("meta") if isinstance(resp.get("meta"), dict) else {}
+            has_more = bool(meta.get("has_more")) if isinstance(meta, dict) else False
+            if isinstance(items, list):
+                for it in items:
+                    if not isinstance(it, dict):
+                        continue
+                    total += 1
+                    try:
+                        total_gib += float(int(it.get("size_bytes") or 0)) / (1024**3)
+                    except Exception:  # noqa: BLE001
+                        pass
+                    archive_id = str(it.get("id", "") or "")
+                    name = str(it.get("name", "") or "")
+                    size = str(it.get("size_raw", "") or "")
+                    lacale_hash = str(it.get("lacale_hash", "") or "").lower().strip()
+                    if not lacale_hash:
+                        unknown_rows.append((archive_id, size, "", name))
+                        continue
+                    if lacale_hash not in qb_hashes:
+                        missing_rows.append((archive_id, size, lacale_hash, name))
+                        continue
+            if not has_more:
+                break
+            page += 1
+
+        rows = unknown_rows if ns.unknown_hash else missing_rows
+        _print_table(("ID", "SIZE", "LACALE_HASH", "NAME"), [(a, b, c, d) for (a, b, c, d) in rows])
+        print(
+            f"my-archives total={total} missing={len(missing_rows)} unknown_hash={len(unknown_rows)} total_gib={total_gib:.2f} qb_instance={str(ns.qb_host).lower()} qb_hashes={len(qb_hashes)}",
+            file=sys.stderr,
+        )
+        if ns.open_lacale_download:
+            import subprocess
+            import time
+
+            urls = [f"https://la-cale.space/api/torrents/download/{h}" for (_, _, h, _) in missing_rows if h]
+            for i, url in enumerate(urls, start=1):
+                try:
+                    subprocess.Popen(["xdg-open", url])  # noqa: S603,S607
+                except Exception:
+                    print(url)
+                if i % 10 == 0:
+                    time.sleep(1)
+        return 0
+
+    if ns.cmd == "prearchivage" and ns.pre_cmd == "take-smallest":
+        calewood = calewood_client()
+        n = int(ns.n)
+        q = str(ns.q or "").strip() or None
+        cat = str(ns.cat or "").strip() or None
+        subcat = str(ns.subcat or "").strip() or None
+        seeders = int(ns.seeders) if int(ns.seeders) != 0 else None
+
+        # Fetch a few pages and then pick smallest by size_bytes.
+        per_page = 200
+        page = 1
+        items_all: list[dict] = []
+        while True:
+            resp = calewood.list_pre_archivage(q=q, cat=cat, subcat=subcat, seeders=seeders, p=page, per_page=per_page)
+            if not isinstance(resp, dict) or not resp.get("success"):
+                raise RuntimeError(f"Calewood pre-archivage list failed at page {page}: {resp}")
+            batch = resp.get("data")
+            meta = resp.get("meta") if isinstance(resp.get("meta"), dict) else {}
+            has_more = bool(meta.get("has_more")) if isinstance(meta, dict) else False
+            if isinstance(batch, list):
+                for it in batch:
+                    if isinstance(it, dict):
+                        items_all.append(it)
+            if not has_more:
+                break
+            page += 1
+            if page > 20:  # safety
+                break
+
+        def size_bytes(it: dict) -> int:
+            try:
+                return int(it.get("size_bytes") or 0)
+            except Exception:  # noqa: BLE001
+                return 0
+
+        chosen = sorted(items_all, key=size_bytes)[: max(0, n)]
+        out_dir = Path(str(ns.prearchivage_torrent_dir))
+        out_dir.mkdir(parents=True, exist_ok=True)
+        rows: list[tuple[str, str, str, str]] = []
+        for it in chosen:
+            tid = int(it.get("id"))
+            name = str(it.get("name") or "")
+            size = str(it.get("size_raw") or "")
+            if ns.dry_run:
+                if ns.verbose:
+                    print(f"Dry-run: would POST /api/archive/pre-archivage/take/{tid}", file=sys.stderr)
+                    print(f"Dry-run: would GET /api/archive/pre-archivage/torrent-file/{tid} -> {out_dir}/{tid}.torrent", file=sys.stderr)
+            else:
+                calewood.take_pre_archivage(tid)
+                data = calewood.download_pre_archivage_torrent_file(tid)
+                (out_dir / f"{tid}.torrent").write_bytes(data)
+            rows.append((str(tid), size, str(it.get("category") or ""), name))
+        _print_table(("ID", "SIZE", "CAT", "NAME"), rows)
+        print(f"items={len(items_all)} chosen={len(chosen)} out_dir={out_dir}", file=sys.stderr)
+        return 0
+
+    if ns.cmd == "fiches" and ns.f_cmd == "take-awaiting":
+        calewood = calewood_client()
+        cat = str(ns.category or "").strip()
+        subcat = str(ns.subcat or "").strip() or None
+        limit = int(ns.limit or 0)
+        include_res: list[re.Pattern[str]] = []
+        for pat in (ns.name_regex or []):
+            try:
+                include_res.append(re.compile(str(pat), re.IGNORECASE))
+            except re.error as e:
+                raise RuntimeError(f"Regex invalide (--name-regex) : {pat!r} : {e}") from e
+
+        def match_name(name: str) -> bool:
+            if not include_res:
+                return True
+            return any(r.search(name or "") for r in include_res)
+
+        per_page = 200
+        page = 1
+        took = 0
+        rows: list[tuple[str, str, str, str, str, str]] = []
+        while True:
+            resp = calewood.list_upload_pre_archivage(status="", cat=cat, p=page, per_page=per_page)
+            if not isinstance(resp, dict) or not resp.get("success"):
+                raise RuntimeError(f"Calewood upload/pre-archivage list failed at page {page}: {resp}")
+            batch = resp.get("data")
+            meta = resp.get("meta") if isinstance(resp.get("meta"), dict) else {}
+            has_more = bool(meta.get("has_more")) if isinstance(meta, dict) else False
+            if isinstance(batch, list):
+                for it in batch:
+                    if not isinstance(it, dict):
+                        continue
+                    name = str(it.get("name") or "")
+                    if not match_name(name):
+                        continue
+                    if subcat and str(it.get("subcategory") or "").strip() != subcat:
+                        continue
+                    tid = int(it.get("id"))
+                    if ns.dry_run:
+                        action = "dry-run"
+                    else:
+                        calewood.take_upload_pre_archivage(tid)
+                        action = "pris"
+                        took += 1
+                    rows.append(
+                        (
+                            str(tid),
+                            str(it.get("status") or ""),
+                            str(it.get("category") or ""),
+                            str(it.get("subcategory") or ""),
+                            str(it.get("sharewood_hash") or ""),
+                            name,
+                        )
+                    )
+                    if limit and took >= limit:
+                        has_more = False
+                        break
+            if not has_more:
+                break
+            page += 1
+
+        _print_table(("ID", "STATUS", "CAT", "SUBCAT", "HASH", "NAME"), rows)
+        print(f"took={took} shown={len(rows)}", file=sys.stderr)
+        return 0
 
         cat = str(ns.cat or "").strip() or None
 
@@ -439,56 +658,6 @@ def main(argv: list[str] | None = None) -> int:
         print(f"scanned={scanned} cats={len(counts)} pages={page}", file=sys.stderr)
         return 0
 
-    legacy_argv: list[str] = []
-    if ns.verbose:
-        legacy_argv.append("--verbose")
-    if ns.json:
-        legacy_argv.append("--json")
-    if ns.dry_run:
-        legacy_argv.append("--dry-run")
-    else:
-        legacy_argv.append("--just-do-it")
-    if getattr(ns, "seedbox_passphrase", ""):
-        legacy_argv.extend(["--seedbox-passphrase", str(ns.seedbox_passphrase)])
-
-    if ns.cmd == "qbit" and ns.qbit_cmd == "get":
-        legacy_argv.extend(["--qb-host", ns.qb_host, "--qbit-get-hash", ns.hash])
-        return _legacy_entry(legacy_argv)
-    if ns.cmd == "qbit" and ns.qbit_cmd == "dl-queue":
-        legacy_argv.extend(["--qb-host", ns.qb_host, "--qbit-dl-queue"])
-        return _legacy_entry(legacy_argv)
-    if ns.cmd == "archives" and ns.archives_cmd == "verify-my":
-        legacy_argv.extend(["--qb-host", ns.qb_host, "--verify-my-archives-in-qbit"])
-        if ns.unknown_hash:
-            legacy_argv.append("--verify-my-archives-unknown-hash")
-        if ns.open_lacale_download:
-            legacy_argv.append("--open-lacale-download")
-        if ns.download_sharewood_torrent_dir:
-            legacy_argv.extend(["--download-sharewood-torrent-dir", ns.download_sharewood_torrent_dir])
-        return _legacy_entry(legacy_argv)
-    if ns.cmd == "prearchivage" and ns.pre_cmd == "take-smallest":
-        legacy_argv.extend(["--prearchivage-take-smallest", str(ns.n)])
-        legacy_argv.extend(["--prearchivage-torrent-dir", ns.prearchivage_torrent_dir])
-        if ns.q:
-            legacy_argv.extend(["--prearchivage-q", ns.q])
-        if ns.cat:
-            legacy_argv.extend(["--prearchivage-cat", ns.cat])
-        if ns.subcat:
-            legacy_argv.extend(["--prearchivage-subcat", ns.subcat])
-        if ns.seeders:
-            legacy_argv.extend(["--prearchivage-seeders", str(ns.seeders)])
-        return _legacy_entry(legacy_argv)
-    if ns.cmd == "fiches" and ns.f_cmd == "take-awaiting":
-        legacy_argv.extend(["--fiche-take-awaiting-category", ns.category])
-        for r in ns.name_regex or []:
-            legacy_argv.extend(["--fiche-take-name-regex", r])
-        if ns.subcat:
-            legacy_argv.extend(["--fiche-take-subcat", ns.subcat])
-        if ns.limit:
-            legacy_argv.extend(["--limit", str(ns.limit)])
-        return _legacy_entry(legacy_argv)
-
-    # Should be unreachable because subparsers are required.
     v2.print_help(sys.stderr)
     return 2
 
