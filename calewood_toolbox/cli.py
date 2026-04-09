@@ -162,7 +162,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     ucount = usub.add_parser(
         "count-done-mine",
-        help="Compte mes uploads terminés (status=my-uploads, items status==done), avec filtres catégorie/sous-catégorie.",
+        help="Compte mes uploads terminés, avec filtres catégorie/sous-catégorie.",
     )
     ucount.add_argument("--cat", default="", metavar="CAT", help="Category exacte à cibler (optionnel).")
     ucount.add_argument("--subcat", default="", metavar="SUBCAT", help="Sous-catégorie exacte à cibler (optionnel).")
@@ -171,6 +171,11 @@ def main(argv: list[str] | None = None) -> int:
         default="my-uploads",
         metavar="STATUS",
         help="Valeur de `status` pour `/api/upload/list` (défaut : my-uploads).",
+    )
+    ucount.add_argument(
+        "--no-prearchivage",
+        action="store_true",
+        help="N'inclut pas les fiches terminées du flux pré-archivage uploader (`/api/upload/pre-archivage/list?status=my-completed`).",
     )
     ucount.add_argument(
         "--name-regex",
@@ -460,6 +465,7 @@ def main(argv: list[str] | None = None) -> int:
         status = str(ns.status or "").strip() or "my-uploads"
         cat = str(ns.cat or "").strip() or None
         subcat = str(ns.subcat or "").strip() or None
+        include_pre = not bool(ns.no_prearchivage)
 
         include_res: list[re.Pattern[str]] = []
         for pat in (ns.name_regex or []):
@@ -479,6 +485,11 @@ def main(argv: list[str] | None = None) -> int:
         total_done = 0
         total_done_bytes = 0
         counts: dict[str, int] = {}
+        scanned_pre = 0
+        total_done_pre = 0
+        total_done_pre_bytes = 0
+
+        # 1) Uploads "classiques"
         while True:
             resp = calewood.list_uploads(status=status, cat=cat, subcat=subcat, p=page, per_page=per_page)
             if not isinstance(resp, dict) or not resp.get("success"):
@@ -507,11 +518,49 @@ def main(argv: list[str] | None = None) -> int:
                 break
             page += 1
 
+        # 2) Fiches terminées (pré-archivage uploader) : my-completed = post_archiving + done
+        if include_pre:
+            page_pre = 1
+            while True:
+                resp = calewood.list_upload_pre_archivage(status="my-completed", cat=cat, p=page_pre, per_page=per_page)
+                if not isinstance(resp, dict) or not resp.get("success"):
+                    raise RuntimeError(f"Calewood upload pre-archivage list failed at page {page_pre}: {resp}")
+                items = resp.get("data")
+                meta = resp.get("meta") if isinstance(resp.get("meta"), dict) else {}
+                has_more = bool(meta.get("has_more")) if isinstance(meta, dict) else False
+                if isinstance(items, list):
+                    for it in items:
+                        if not isinstance(it, dict):
+                            continue
+                        scanned_pre += 1
+                        # Compat: certaines réponses incluent status post_archiving/done ; on les compte comme "terminés fiche".
+                        st = str(it.get("status") or "").strip().lower()
+                        if st not in {"post_archiving", "done"}:
+                            continue
+                        if subcat:
+                            if str(it.get("subcategory") or "").strip() != subcat:
+                                continue
+                        name = str(it.get("name") or "")
+                        if not match_name(name):
+                            continue
+                        total_done_pre += 1
+                        try:
+                            total_done_pre_bytes += int(it.get("size_bytes") or 0)
+                        except Exception:  # noqa: BLE001
+                            pass
+                        c = str(it.get("category") or "").strip() or "(vide)"
+                        counts[c] = counts.get(c, 0) + 1
+                if not has_more:
+                    break
+                page_pre += 1
+
         rows = [(k, str(v)) for k, v in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0].lower()))]
         _print_table(("CAT", "COUNT"), rows)
-        done_gib = total_done_bytes / (1024**3)
+        done_total = total_done + total_done_pre
+        done_total_bytes = total_done_bytes + total_done_pre_bytes
+        done_gib = done_total_bytes / (1024**3)
         print(
-            f"status={status} scanned={scanned} done={total_done} done_gib={done_gib:.2f} cats={len(counts)} pages={page}",
+            f"status={status} scanned={scanned} done={total_done} prearchivage_scanned={scanned_pre} prearchivage_done={total_done_pre} done_total={done_total} done_gib={done_gib:.2f} cats={len(counts)} pages={page}",
             file=sys.stderr,
         )
         return 0
