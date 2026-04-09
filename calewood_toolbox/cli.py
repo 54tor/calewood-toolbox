@@ -270,7 +270,7 @@ def main(argv: list[str] | None = None) -> int:
                         action,
                     )
                 )
-            print_table(headers, rows)
+            _print_table(headers, rows)
             print(f"matched={len(matched)} took={took} failed={failed}", file=sys.stderr)
         return 0 if failed == 0 else 1
 
