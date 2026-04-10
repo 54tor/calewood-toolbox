@@ -8,8 +8,8 @@ Ce dépôt ne contient **aucun identifiant** ni **endpoint privé**. Tout se con
 
 - CLI Python : `calewood-toolbox`
 - Docs :
-  - `docs/API_CONTRACTS.md` (contrats / endpoints utilisés)
-  - `docs/SCENARIO_prendre_uploads_selected.md`
+  - `docs/CONTRATS_API.md` (contrats / endpoints utilisés)
+  - `docs/SCENARIO-prendre-uploads-selected.md`
 
 ## Exécution (Docker)
 
@@ -124,12 +124,12 @@ calewood-toolbox uploads take-selected \
 
 ### Scénarios (docs)
 
-- `docs/API_CONTRACTS.md`
-- `docs/SCENARIO_prendre_uploads_selected.md`
-- `docs/SCENARIO_archives_take_smallest_et_budget.md`
-- `docs/SCENARIO_prearchivage_take_budget.md`
-- `docs/GUIDE_prendre_un_budget_gib.md`
-- `docs/GUIDE_prendre_n_archives.md`
+- `docs/CONTRATS_API.md`
+- `docs/SCENARIO-prendre-uploads-selected.md`
+- `docs/SCENARIO-archives-prendre-n-ou-budget.md`
+- `docs/SCENARIO-prearchivage-prendre-budget.md`
+- `docs/GUIDE-prendre-budget-gib.md`
+- `docs/GUIDE-prendre-n-archives.md`
 
 ### Dépréciations
 
