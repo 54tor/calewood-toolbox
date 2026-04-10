@@ -30,6 +30,14 @@ def _print_table(headers: tuple[str, ...], rows: list[tuple[str, ...]]) -> None:
         print("  ".join(r[i].ljust(widths[i]) for i in range(len(headers))))
 
 
+def _fmt_gib(nbytes: int) -> str:
+    try:
+        v = int(nbytes)
+    except Exception:  # noqa: BLE001
+        v = 0
+    return f"{(v / (1024**3)):.2f} GiB"
+
+
 def _qbit_from_instance(name: str):
     from .qbit import QbitClient
 
@@ -125,6 +133,31 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Ouvre l’URL de download La‑Cale pour chaque lacale_hash manquant (https://la-cale.space/api/torrents/download/{hash}).",
     )
+    atake_budget = asub.add_parser(
+        "take-budget-gib",
+        help="Prend des items à archiver jusqu'à un budget (GiB), triés par taille croissante.",
+    )
+    atake_budget.add_argument("gib", type=int, metavar="GiB", help="Budget total en GiB (arrondi inférieur).")
+    atake_budget.add_argument(
+        "--status",
+        default="uploaded",
+        help="Filtre `status` pour `/api/archive/list` (défaut: uploaded).",
+    )
+    atake_budget.add_argument("--q", default="", help="Filtre `q` côté API (recherche).")
+    atake_budget.add_argument("--cat", default="", help="Filtre `cat` côté API.")
+    atake_budget.add_argument("--subcat", default="", help="Filtre `subcat` côté API.")
+    atake_budget.add_argument(
+        "--max-items",
+        type=int,
+        default=0,
+        metavar="N",
+        help="Nombre maximum d'items à prendre (0 = illimité).",
+    )
+    atake_budget.add_argument(
+        "--complete",
+        action="store_true",
+        help="Enchaîne aussi `POST /api/archive/complete/{id}` (après `take`).",
+    )
 
     # pre-archivage
     pre = sub.add_parser("prearchivage", help="Pré-archivage (archiviste).")
@@ -136,6 +169,22 @@ def main(argv: list[str] | None = None) -> int:
     ptake.add_argument("--cat", default="", help="Filtre cat=... côté API.")
     ptake.add_argument("--subcat", default="", help="Filtre subcat=... côté API.")
     ptake.add_argument("--seeders", type=int, default=0, metavar="N", help="Filtre seeders>=N côté API (0 désactive).")
+    ptake_budget = psub.add_parser(
+        "take-budget-gib",
+        help="Prend des items disponibles jusqu'à un budget (GiB), triés par taille croissante.",
+    )
+    ptake_budget.add_argument("gib", type=int, metavar="GiB", help="Budget total en GiB (arrondi inférieur).")
+    ptake_budget.add_argument("--q", default="", help="Filtre `q` côté API (recherche).")
+    ptake_budget.add_argument("--cat", default="", help="Filtre `cat` côté API.")
+    ptake_budget.add_argument("--subcat", default="", help="Filtre `subcat` côté API.")
+    ptake_budget.add_argument("--seeders", type=int, default=0, metavar="N", help="Filtre seeders>=N côté API (0 désactive).")
+    ptake_budget.add_argument(
+        "--max-items",
+        type=int,
+        default=0,
+        metavar="N",
+        help="Nombre maximum d'items à prendre (0 = illimité).",
+    )
 
     # fiches (uploader)
     fiches = sub.add_parser("fiches", help="Fiches uploader (awaiting_fiche / pré-archivage upload).")
@@ -561,6 +610,186 @@ def main(argv: list[str] | None = None) -> int:
         done_gib = done_total_bytes / (1024**3)
         print(
             f"status={status} scanned={scanned} done={total_done} prearchivage_scanned={scanned_pre} prearchivage_done={total_done_pre} done_total={done_total} done_gib={done_gib:.2f} cats={len(counts)} pages={page}",
+            file=sys.stderr,
+        )
+        return 0
+
+    if ns.cmd == "archives" and ns.archives_cmd == "take-budget-gib":
+        calewood = _calewood_client()
+        budget_gib = int(ns.gib)
+        if budget_gib <= 0:
+            raise RuntimeError("Budget GiB doit être > 0.")
+        budget_bytes = budget_gib * (1024**3)
+        status = str(ns.status or "").strip()
+        q = str(ns.q or "").strip() or None
+        cat = str(ns.cat or "").strip() or None
+        subcat = str(ns.subcat or "").strip() or None
+        max_items = int(ns.max_items or 0)
+        do_complete = bool(ns.complete)
+
+        per_page = 200
+        page = 1
+        selected: list[dict] = []
+        total_bytes = 0
+        scanned = 0
+        while True:
+            resp = calewood.list_archives(
+                status=status,
+                q=q,
+                cat=cat,
+                subcat=subcat,
+                sort="size_bytes",
+                order="asc",
+                p=page,
+                per_page=per_page,
+                v1_only=0,
+            )
+            if not isinstance(resp, dict) or not resp.get("success"):
+                raise RuntimeError(f"Calewood archive list failed at page {page}: {resp}")
+            items = resp.get("data")
+            meta = resp.get("meta") if isinstance(resp.get("meta"), dict) else {}
+            has_more = bool(meta.get("has_more")) if isinstance(meta, dict) else False
+            if isinstance(items, list):
+                for it in items:
+                    if not isinstance(it, dict):
+                        continue
+                    scanned += 1
+                    try:
+                        sz = int(it.get("size_bytes") or 0)
+                    except Exception:  # noqa: BLE001
+                        sz = 0
+                    if sz <= 0:
+                        continue
+                    if total_bytes + sz > budget_bytes:
+                        continue
+                    selected.append(it)
+                    total_bytes += sz
+                    if max_items > 0 and len(selected) >= max_items:
+                        has_more = False
+                        break
+            if not has_more:
+                break
+            page += 1
+
+        rows: list[tuple[str, ...]] = []
+        took = 0
+        failed = 0
+        for it in selected:
+            aid = int(it.get("id") or 0)
+            name = str(it.get("name") or "")
+            try:
+                sz = int(it.get("size_bytes") or 0)
+            except Exception:  # noqa: BLE001
+                sz = 0
+            action = "dry-run"
+            if not ns.dry_run:
+                try:
+                    calewood.take_archive(str(aid))
+                    if do_complete:
+                        time.sleep(1)
+                        calewood.complete_archive(str(aid))
+                    action = "took" if not do_complete else "took+complete"
+                    took += 1
+                except Exception as e:  # noqa: BLE001
+                    action = f"failed: {e}"
+                    failed += 1
+            rows.append((str(aid), _fmt_gib(sz), name[:80], action))
+            if ns.verbose:
+                print(f"id={aid} size={sz} name={name}", file=sys.stderr)
+
+        _print_table(("ID", "SIZE", "NAME", "ACTION"), rows)
+        print(
+            f"status={status} scanned={scanned} selected={len(selected)} budget_gib={budget_gib} selected_gib={(total_bytes/(1024**3)):.2f} took={took} failed={failed}",
+            file=sys.stderr,
+        )
+        return 0
+
+    if ns.cmd == "prearchivage" and ns.pre_cmd == "take-budget-gib":
+        calewood = _calewood_client()
+        budget_gib = int(ns.gib)
+        if budget_gib <= 0:
+            raise RuntimeError("Budget GiB doit être > 0.")
+        budget_bytes = budget_gib * (1024**3)
+        q = str(ns.q or "").strip() or None
+        cat = str(ns.cat or "").strip() or None
+        subcat = str(ns.subcat or "").strip() or None
+        seeders = int(ns.seeders or 0)
+        max_items = int(ns.max_items or 0)
+
+        per_page = 200
+        page = 1
+        candidates: list[dict] = []
+        scanned = 0
+        while True:
+            resp = calewood.list_pre_archivage(
+                status=None,  # sans filtre => selected disponibles à prendre
+                q=q,
+                cat=cat,
+                subcat=subcat,
+                seeders=seeders if seeders > 0 else None,
+                p=page,
+                per_page=per_page,
+            )
+            if not isinstance(resp, dict) or not resp.get("success"):
+                raise RuntimeError(f"Calewood pre-archivage list failed at page {page}: {resp}")
+            items = resp.get("data")
+            meta = resp.get("meta") if isinstance(resp.get("meta"), dict) else {}
+            has_more = bool(meta.get("has_more")) if isinstance(meta, dict) else False
+            if isinstance(items, list):
+                for it in items:
+                    if not isinstance(it, dict):
+                        continue
+                    scanned += 1
+                    candidates.append(it)
+            if not has_more:
+                break
+            page += 1
+
+        # Tri local par taille croissante
+        def _sz(it: dict) -> int:
+            try:
+                return int(it.get("size_bytes") or 0)
+            except Exception:  # noqa: BLE001
+                return 0
+
+        candidates.sort(key=_sz)
+
+        selected: list[dict] = []
+        total_bytes = 0
+        for it in candidates:
+            sz = _sz(it)
+            if sz <= 0:
+                continue
+            if total_bytes + sz > budget_bytes:
+                continue
+            selected.append(it)
+            total_bytes += sz
+            if max_items > 0 and len(selected) >= max_items:
+                break
+
+        rows: list[tuple[str, ...]] = []
+        took = 0
+        failed = 0
+        for it in selected:
+            aid = int(it.get("id") or 0)
+            name = str(it.get("name") or "")
+            sz = _sz(it)
+            action = "dry-run"
+            if not ns.dry_run:
+                try:
+                    calewood.take_pre_archivage(aid)
+                    action = "took"
+                    took += 1
+                except Exception as e:  # noqa: BLE001
+                    action = f"failed: {e}"
+                    failed += 1
+            rows.append((str(aid), _fmt_gib(sz), name[:80], action))
+            if ns.verbose:
+                print(f"id={aid} size={sz} name={name}", file=sys.stderr)
+
+        _print_table(("ID", "SIZE", "NAME", "ACTION"), rows)
+        print(
+            f"scanned={scanned} candidates={len(candidates)} selected={len(selected)} budget_gib={budget_gib} selected_gib={(total_bytes/(1024**3)):.2f} took={took} failed={failed}",
             file=sys.stderr,
         )
         return 0
