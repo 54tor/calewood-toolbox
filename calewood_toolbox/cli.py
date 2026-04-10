@@ -361,6 +361,25 @@ def main(argv: list[str] | None = None) -> int:
 
     qqueue = qsub.add_parser("dl-queue", help="Statistiques de file de téléchargement.")
     qqueue.add_argument("--qb-host", required=True, help="Alias d'instance qBittorrent (name).")
+    qlist = qsub.add_parser("list", help="Liste tous les torrents d'une instance qBittorrent.")
+    qlist.add_argument("--qb-host", required=True, help="Alias d'instance qBittorrent (name).")
+    qlist.add_argument(
+        "--category",
+        default="",
+        help="Filtre par catégorie exacte (optionnel).",
+    )
+    qlist.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        metavar="N",
+        help="Limite le nombre de torrents affichés (0 = illimité).",
+    )
+    qlist.add_argument(
+        "--only-state",
+        default="",
+        help="Filtre local par état exact (optionnel).",
+    )
     qmirror = qsub.add_parser("mirror", help="Synchronise deux qBittorrent en copiant les torrents manquants dans la destination.")
     qmirror.add_argument("--src", required=True, help="Alias d'instance qBittorrent source.")
     qmirror.add_argument(
@@ -664,6 +683,37 @@ def main(argv: list[str] | None = None) -> int:
                     pass
         left_gib = left_bytes / (1024**3)
         print(f"instance={str(ns.qb_host).lower()} queuedDL={queued} left_gib={left_gib:.2f}")
+        return 0
+
+    if ns.cmd == "qbit" and ns.qbit_cmd == "list":
+        qb = _qbit_from_instance(ns.qb_host)
+        category = str(ns.category or "").strip() or None
+        only_state = str(ns.only_state or "").strip() or None
+        limit = int(ns.limit or 0)
+        torrents = qb.list_torrents(category=category)
+        rows: list[tuple[str, str, str, str, str, str]] = []
+        shown = 0
+        for t in torrents:
+            if only_state and str(t.get("state") or "").strip() != only_state:
+                continue
+            rows.append(
+                (
+                    str(t.get("hash") or "")[:12],
+                    str(t.get("state") or ""),
+                    str(t.get("category") or ""),
+                    _fmt_gib(int(t.get("size") or 0)),
+                    _fmt_gib(int(t.get("amount_left") or 0)),
+                    str(t.get("name") or "")[:90],
+                )
+            )
+            shown += 1
+            if limit > 0 and shown >= limit:
+                break
+        _print_table(("HASH", "STATE", "CAT", "SIZE", "LEFT", "NAME"), rows)
+        print(
+            f"instance={str(ns.qb_host).lower()} torrents={len(torrents)} shown={shown} category={category or 'all'} only_state={only_state or 'all'}",
+            file=sys.stderr,
+        )
         return 0
 
     if ns.cmd == "qbit" and ns.qbit_cmd == "mirror":
