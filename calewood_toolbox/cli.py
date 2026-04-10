@@ -72,6 +72,12 @@ def _open_urls(urls: list[str], *, batch: int = 10, sleep_seconds: int = 1) -> i
     return opened
 
 
+def _print_urls(urls: list[str]) -> None:
+    urls = [str(u).strip() for u in (urls or []) if str(u).strip()]
+    for u in urls:
+        print(u)
+
+
 def _qbit_from_instance(name: str):
     from .qbit import QbitClient
 
@@ -201,6 +207,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Après un take réussi, ouvre le lien La‑Cale de téléchargement (https://la-cale.space/api/torrents/download/{lacale_hash}).",
     )
     tmix.add_argument(
+        "--print-lacale-download-urls",
+        action="store_true",
+        help="Affiche sur stdout les URLs de téléchargement La‑Cale des items sélectionnés (sans ouverture navigateur).",
+    )
+    tmix.add_argument(
         "--open-batch",
         type=int,
         default=10,
@@ -284,6 +295,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Après un take réussi, ouvre le lien La‑Cale de téléchargement (https://la-cale.space/api/torrents/download/{lacale_hash}).",
     )
     atake_budget.add_argument(
+        "--print-lacale-download-urls",
+        action="store_true",
+        help="Affiche sur stdout les URLs de téléchargement La‑Cale des items sélectionnés (sans ouverture navigateur).",
+    )
+    atake_budget.add_argument(
         "--open-batch",
         type=int,
         default=10,
@@ -319,6 +335,11 @@ def main(argv: list[str] | None = None) -> int:
         "--open-lacale-download",
         action="store_true",
         help="Après un take réussi, ouvre le lien La‑Cale de téléchargement (https://la-cale.space/api/torrents/download/{lacale_hash}).",
+    )
+    atake_smallest.add_argument(
+        "--print-lacale-download-urls",
+        action="store_true",
+        help="Affiche sur stdout les URLs de téléchargement La‑Cale des items sélectionnés (sans ouverture navigateur).",
     )
     atake_smallest.add_argument(
         "--open-batch",
@@ -581,6 +602,7 @@ def main(argv: list[str] | None = None) -> int:
         subcat = str(ns.subcat or "").strip() or None
         do_complete = bool(ns.complete)
         open_lacale = bool(getattr(ns, "open_lacale_download", False))
+        print_urls = bool(getattr(ns, "print_lacale_download_urls", False))
         open_batch = int(getattr(ns, "open_batch", 10) or 10)
         open_sleep = int(getattr(ns, "open_sleep_seconds", 1) or 1)
         opened_urls: list[str] = []
@@ -642,7 +664,7 @@ def main(argv: list[str] | None = None) -> int:
                     else:
                         action = "took"
                     lacale_hash = str(it.get("lacale_hash") or "").strip().lower()
-                    if open_lacale and lacale_hash:
+                    if (open_lacale or print_urls) and lacale_hash:
                         opened_urls.append(f"https://la-cale.space/api/torrents/download/{lacale_hash}")
                     took += 1
                 except Exception as e:  # noqa: BLE001
@@ -655,6 +677,8 @@ def main(argv: list[str] | None = None) -> int:
             f"status={status} scanned={scanned} selected={len(selected[:n])} selected_gib={(total_bytes/(1024**3)):.2f} took={took} failed={failed}",
             file=sys.stderr,
         )
+        if opened_urls and print_urls:
+            _print_urls(opened_urls)
         if open_lacale and opened_urls and not ns.dry_run:
             opened = _open_urls(opened_urls, batch=open_batch, sleep_seconds=open_sleep)
             print(f"opened={opened} urls={len(opened_urls)}", file=sys.stderr)
@@ -876,6 +900,7 @@ def main(argv: list[str] | None = None) -> int:
         max_pages_classic = int(ns.max_pages_classic or 0)
         do_complete_classic = bool(ns.complete_classic)
         open_lacale = bool(getattr(ns, "open_lacale_download", False))
+        print_urls = bool(getattr(ns, "print_lacale_download_urls", False))
         open_batch = int(getattr(ns, "open_batch", 10) or 10)
         open_sleep = int(getattr(ns, "open_sleep_seconds", 1) or 1)
         opened_urls: list[str] = []
@@ -969,7 +994,7 @@ def main(argv: list[str] | None = None) -> int:
                     else:
                         action = "took"
                     lacale_hash = str(it.get("lacale_hash") or "").strip().lower()
-                    if open_lacale and lacale_hash:
+                    if (open_lacale or print_urls) and lacale_hash:
                         opened_urls.append(f"https://la-cale.space/api/torrents/download/{lacale_hash}")
                     if add_sw:
                         torrent_bytes = calewood.download_archive_torrent_file(int(tid))
@@ -991,6 +1016,8 @@ def main(argv: list[str] | None = None) -> int:
             f"scanned_classic={scanned_classic} candidates={len(candidates)} selected={len(selected)} budget_gib={budget_gib} selected_gib={(total_bytes/(1024**3)):.2f} took={took} failed={failed}",
             file=sys.stderr,
         )
+        if opened_urls and print_urls:
+            _print_urls(opened_urls)
         if open_lacale and opened_urls and not ns.dry_run:
             opened = _open_urls(opened_urls, batch=open_batch, sleep_seconds=open_sleep)
             print(f"opened={opened} urls={len(opened_urls)}", file=sys.stderr)
@@ -1009,6 +1036,7 @@ def main(argv: list[str] | None = None) -> int:
         max_items = int(ns.max_items or 0)
         do_complete = bool(ns.complete)
         open_lacale = bool(getattr(ns, "open_lacale_download", False))
+        print_urls = bool(getattr(ns, "print_lacale_download_urls", False))
         open_batch = int(getattr(ns, "open_batch", 10) or 10)
         open_sleep = int(getattr(ns, "open_sleep_seconds", 1) or 1)
         opened_urls: list[str] = []
@@ -1076,7 +1104,7 @@ def main(argv: list[str] | None = None) -> int:
                         calewood.complete_archive(str(aid))
                     action = "took" if not do_complete else "took+complete"
                     lacale_hash = str(it.get("lacale_hash") or "").strip().lower()
-                    if open_lacale and lacale_hash:
+                    if (open_lacale or print_urls) and lacale_hash:
                         opened_urls.append(f"https://la-cale.space/api/torrents/download/{lacale_hash}")
                     took += 1
                 except Exception as e:  # noqa: BLE001
@@ -1091,6 +1119,8 @@ def main(argv: list[str] | None = None) -> int:
             f"status={status} scanned={scanned} selected={len(selected)} budget_gib={budget_gib} selected_gib={(total_bytes/(1024**3)):.2f} took={took} failed={failed}",
             file=sys.stderr,
         )
+        if opened_urls and print_urls:
+            _print_urls(opened_urls)
         if open_lacale and opened_urls and not ns.dry_run:
             opened = _open_urls(opened_urls, batch=open_batch, sleep_seconds=open_sleep)
             print(f"opened={opened} urls={len(opened_urls)}", file=sys.stderr)
