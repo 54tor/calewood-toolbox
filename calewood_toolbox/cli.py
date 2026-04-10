@@ -404,6 +404,20 @@ def main(argv: list[str] | None = None) -> int:
         metavar="N",
         help="Limite le nombre de torrents copiés (0 = illimité).",
     )
+    qmirror.add_argument(
+        "--batch-size",
+        type=int,
+        default=20,
+        metavar="N",
+        help="Nombre maximal de torrents ajoutés par lot (défaut: 20).",
+    )
+    qmirror.add_argument(
+        "--batch-sleep-seconds",
+        type=int,
+        default=1,
+        metavar="S",
+        help="Pause entre les lots d'ajout (défaut: 1).",
+    )
 
     # torrents
     torrents = sub.add_parser("torrents", help="Recherche torrents (api/torrent).")
@@ -663,6 +677,8 @@ def main(argv: list[str] | None = None) -> int:
         start = bool(ns.start)
         skip_checking = bool(ns.skip_checking)
         limit = int(ns.limit or 0)
+        batch_size = max(1, int(ns.batch_size or 20))
+        batch_sleep = max(0, int(ns.batch_sleep_seconds or 1))
 
         src_torrents = src.list_torrents(category=src_category)
         dst_hashes_by_name = {
@@ -677,6 +693,7 @@ def main(argv: list[str] | None = None) -> int:
         copied = 0
         scanned = 0
         missing_rows: list[tuple[str, str, str, str]] = []
+        pending_batches: list[tuple[str, bytes, str, str, str]] = []
         for t in src_torrents:
             scanned += 1
             h = str(t.get("hash", "")).strip().lower()
@@ -694,23 +711,41 @@ def main(argv: list[str] | None = None) -> int:
                 if h in dst_hashes_by_name[dst_name]:
                     continue
                 category = dst_category or _qbit_instance_category(dst_name, "mirror_category", "calewood-mirror")
-                if not ns.dry_run:
-                    dst_client.add_torrent_file(
+                if ns.dry_run:
+                    actions.append(dst_name)
+                else:
+                    pending_batches.append((dst_name, torrent_bytes, category, h, name[:60]))
+                    actions.append(dst_name)
+            if actions:
+                copied += 1
+                missing_rows.append((h, cat, name[:60], ",".join(actions)))
+            if limit > 0 and copied >= limit:
+                break
+
+            if not ns.dry_run and len(pending_batches) >= batch_size:
+                for dst_name, torrent_bytes, category, _, _ in pending_batches:
+                    dst_clients[dst_name].add_torrent_file(
                         torrent_bytes,
                         category=category,
                         start=start,
                         skip_checking=skip_checking,
                     )
-                actions.append(dst_name)
-            if actions:
-                copied += 1
-                missing_rows.append((h, cat, name[:60], ",".join(actions) if actions else "copied"))
-            if limit > 0 and copied >= limit:
-                break
+                pending_batches.clear()
+                if batch_sleep > 0:
+                    time.sleep(batch_sleep)
+
+        if not ns.dry_run and pending_batches:
+            for dst_name, torrent_bytes, category, _, _ in pending_batches:
+                dst_clients[dst_name].add_torrent_file(
+                    torrent_bytes,
+                    category=category,
+                    start=start,
+                    skip_checking=skip_checking,
+                )
 
         _print_table(("HASH", "CAT", "NAME", "ACTION"), missing_rows)
         print(
-            f"src={str(ns.src).lower()} dsts={','.join(dst_names)} scanned={scanned} copied={copied} category={dst_category or 'instance'} start={start} skip_checking={skip_checking}",
+            f"src={str(ns.src).lower()} dsts={','.join(dst_names)} scanned={scanned} copied={copied} category={dst_category or 'instance'} start={start} skip_checking={skip_checking} batch_size={batch_size} batch_sleep={batch_sleep}",
             file=sys.stderr,
         )
         return 0
