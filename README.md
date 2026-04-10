@@ -124,6 +124,7 @@ calewood-toolbox uploads take-selected \
 
 ### Scénarios (docs)
 
+- `docs/API_CONTRACTS.md`
 - `docs/SCENARIO_prendre_uploads_selected.md`
 - `docs/SCENARIO_archives_take_smallest_et_budget.md`
 - `docs/SCENARIO_prearchivage_take_budget.md`
