@@ -194,17 +194,28 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Enchaîne aussi `POST /api/archive/complete/{id}` (après `take`).",
     )
+    atake_smallest = asub.add_parser(
+        "take-smallest",
+        help="Prend les N plus petits items à archiver (triés par taille croissante).",
+    )
+    atake_smallest.add_argument("n", type=int, metavar="N", help="Nombre maximum d'items à prendre.")
+    atake_smallest.add_argument(
+        "--status",
+        default="uploaded",
+        help="Filtre `status` pour `/api/archive/list` (défaut: uploaded).",
+    )
+    atake_smallest.add_argument("--q", default="", help="Filtre `q` côté API (recherche).")
+    atake_smallest.add_argument("--cat", default="", help="Filtre `cat` côté API.")
+    atake_smallest.add_argument("--subcat", default="", help="Filtre `subcat` côté API.")
+    atake_smallest.add_argument(
+        "--complete",
+        action="store_true",
+        help="Enchaîne aussi `POST /api/archive/complete/{id}` (après `take`).",
+    )
 
     # pre-archivage
     pre = sub.add_parser("prearchivage", help="Pré-archivage (archiviste).")
     psub = pre.add_subparsers(dest="pre_cmd", required=True)
-    ptake = psub.add_parser("take-smallest", help="Prend les N plus petits items disponibles, puis télécharge les .torrent.")
-    ptake.add_argument("n", type=int, metavar="N", help="Nombre maximum d'items à prendre.")
-    ptake.add_argument("--torrent-dir", type=str, default="./downloads", metavar="DIR", help="Dossier de destination des .torrent.")
-    ptake.add_argument("--q", default="", help="Filtre q=... côté API.")
-    ptake.add_argument("--cat", default="", help="Filtre cat=... côté API.")
-    ptake.add_argument("--subcat", default="", help="Filtre subcat=... côté API.")
-    ptake.add_argument("--seeders", type=int, default=0, metavar="N", help="Filtre seeders>=N côté API (0 désactive).")
     ptake_budget = psub.add_parser(
         "take-budget-gib",
         help="Prend des items disponibles jusqu'à un budget (GiB), triés par taille croissante.",
@@ -394,59 +405,84 @@ def main(argv: list[str] | None = None) -> int:
                     time.sleep(1)
         return 0
 
-    if ns.cmd == "prearchivage" and ns.pre_cmd == "take-smallest":
+    if ns.cmd == "archives" and ns.archives_cmd == "take-smallest":
         calewood = _calewood_client()
         n = int(ns.n)
+        if n <= 0:
+            raise RuntimeError("N doit être > 0.")
+        status = str(ns.status or "").strip() or "uploaded"
         q = str(ns.q or "").strip() or None
         cat = str(ns.cat or "").strip() or None
         subcat = str(ns.subcat or "").strip() or None
-        seeders = int(ns.seeders) if int(ns.seeders) != 0 else None
+        do_complete = bool(ns.complete)
 
         per_page = 200
         page = 1
-        items_all: list[dict] = []
+        scanned = 0
+        selected: list[dict] = []
         while True:
-            resp = calewood.list_pre_archivage(q=q, cat=cat, subcat=subcat, seeders=seeders, p=page, per_page=per_page)
+            resp = calewood.list_archives(
+                status=status,
+                q=q,
+                cat=cat,
+                subcat=subcat,
+                sort="size_bytes",
+                order="asc",
+                p=page,
+                per_page=per_page,
+                v1_only=0,
+            )
             if not isinstance(resp, dict) or not resp.get("success"):
-                raise RuntimeError(f"Calewood pre-archivage list failed at page {page}: {resp}")
-            batch = resp.get("data")
+                raise RuntimeError(f"Calewood archive list failed at page {page}: {resp}")
+            items = resp.get("data")
             meta = resp.get("meta") if isinstance(resp.get("meta"), dict) else {}
             has_more = bool(meta.get("has_more")) if isinstance(meta, dict) else False
-            if isinstance(batch, list):
-                for it in batch:
-                    if isinstance(it, dict):
-                        items_all.append(it)
+            if isinstance(items, list):
+                for it in items:
+                    if not isinstance(it, dict):
+                        continue
+                    scanned += 1
+                    selected.append(it)
+                    if len(selected) >= n:
+                        has_more = False
+                        break
             if not has_more:
                 break
             page += 1
-            if page > 20:
-                break
 
-        def size_bytes(it: dict) -> int:
-            try:
-                return int(it.get("size_bytes") or 0)
-            except Exception:  # noqa: BLE001
-                return 0
-
-        chosen = sorted(items_all, key=size_bytes)[: max(0, n)]
-        out_dir = Path(str(ns.torrent_dir))
-        out_dir.mkdir(parents=True, exist_ok=True)
         rows: list[tuple[str, str, str, str]] = []
-        for it in chosen:
-            tid = int(it.get("id"))
+        took = 0
+        failed = 0
+        total_bytes = 0
+        for it in selected[:n]:
+            aid = int(it.get("id") or 0)
             name = str(it.get("name") or "")
-            size = str(it.get("size_raw") or "")
-            if ns.dry_run:
-                if ns.verbose:
-                    print(f"Dry-run: would POST /api/archive/pre-archivage/take/{tid}", file=sys.stderr)
-                    print(f"Dry-run: would GET /api/archive/pre-archivage/torrent-file/{tid} -> {out_dir}/{tid}.torrent", file=sys.stderr)
-            else:
-                calewood.take_pre_archivage(tid)
-                data = calewood.download_pre_archivage_torrent_file(tid)
-                (out_dir / f"{tid}.torrent").write_bytes(data)
-            rows.append((str(tid), size, str(it.get("category") or ""), name))
-        _print_table(("ID", "SIZE", "CAT", "NAME"), rows)
-        print(f"items={len(items_all)} chosen={len(chosen)} out_dir={out_dir}", file=sys.stderr)
+            try:
+                sz = int(it.get("size_bytes") or 0)
+            except Exception:  # noqa: BLE001
+                sz = 0
+            total_bytes += max(sz, 0)
+            action = "dry-run"
+            if not ns.dry_run:
+                try:
+                    calewood.take_archive(str(aid))
+                    if do_complete:
+                        time.sleep(1)
+                        calewood.complete_archive(str(aid))
+                        action = "took+complete"
+                    else:
+                        action = "took"
+                    took += 1
+                except Exception as e:  # noqa: BLE001
+                    action = f"failed: {e}"
+                    failed += 1
+            rows.append((str(aid), _fmt_gib(sz), name[:80], action))
+
+        _print_table(("ID", "SIZE", "NAME", "ACTION"), rows)
+        print(
+            f"status={status} scanned={scanned} selected={len(selected[:n])} selected_gib={(total_bytes/(1024**3)):.2f} took={took} failed={failed}",
+            file=sys.stderr,
+        )
         return 0
 
     if ns.cmd == "fiches" and ns.f_cmd == "take-awaiting":
