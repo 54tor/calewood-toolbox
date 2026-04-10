@@ -381,7 +381,7 @@ def main(argv: list[str] | None = None) -> int:
         help="Conserve le comportement sans vérification des données (défaut: activé).",
     )
     qmirror.add_argument(
-        "--no-skip-checking",
+        "--force-check",
         dest="skip_checking",
         action="store_false",
         help="Force la vérification des données à l'ajout.",
