@@ -153,6 +153,8 @@ calewood-toolbox uploads take-selected \
 - `docs/SCENARIO_prendre_uploads_selected.md`
 - `docs/SCENARIO_archives_take_smallest_et_budget.md`
 - `docs/SCENARIO_prearchivage_take_budget.md`
+- `docs/GUIDE_prendre_un_budget_gib.md`
+- `docs/GUIDE_prendre_n_archives.md`
 
 ### Dépréciations
 
