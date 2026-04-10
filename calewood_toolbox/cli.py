@@ -55,6 +55,18 @@ def _qbit_from_instance(name: str):
         return QbitClient(base_url=base_url, username=username, password=password)
     raise RuntimeError(f"Instance qBittorrent inconnue: {name!r}")
 
+def _qbit_from_instance_with_category(name: str):
+    qb = _qbit_from_instance(name)
+    n = (name or "").strip().lower()
+    for inst in getattr(config, "QBIT_INSTANCES", []):
+        if not isinstance(inst, dict):
+            continue
+        if str(inst.get("name", "")).strip().lower() != n:
+            continue
+        cat = str(inst.get("category") or "").strip()
+        return qb, (cat or "calewood")
+    return qb, "calewood"
+
 
 def _calewood_client() -> CalewoodClient:
     token = _env("CALEWOOD_TOKEN", config.CALEWOOD_TOKEN).strip()
@@ -148,6 +160,12 @@ def main(argv: list[str] | None = None) -> int:
         metavar="N",
         help="Limite le nombre de pages scannées côté archivage classique (0 = toutes).",
     )
+    tmix.add_argument("--qb-host", default="", help="Alias qBittorrent (optionnel).")
+    tmix.add_argument(
+        "--add-to-qbit",
+        action="store_true",
+        help="Après un take réussi, télécharge le .torrent La‑Cale et l'ajoute dans qBittorrent (catégorie par instance, défaut: calewood).",
+    )
 
     # qbit
     qbit = sub.add_parser("qbit", help="Commandes qBittorrent.")
@@ -206,6 +224,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Enchaîne aussi `POST /api/archive/complete/{id}` (après `take`).",
     )
+    atake_budget.add_argument("--qb-host", default="", help="Alias qBittorrent (optionnel).")
+    atake_budget.add_argument(
+        "--add-to-qbit",
+        action="store_true",
+        help="Après un take réussi, télécharge le .torrent La‑Cale et l'ajoute dans qBittorrent (catégorie par instance, défaut: calewood).",
+    )
     atake_smallest = asub.add_parser(
         "take-smallest",
         help="Prend les N plus petits items à archiver (triés par taille croissante).",
@@ -223,6 +247,12 @@ def main(argv: list[str] | None = None) -> int:
         "--complete",
         action="store_true",
         help="Enchaîne aussi `POST /api/archive/complete/{id}` (après `take`).",
+    )
+    atake_smallest.add_argument("--qb-host", default="", help="Alias qBittorrent (optionnel).")
+    atake_smallest.add_argument(
+        "--add-to-qbit",
+        action="store_true",
+        help="Après un take réussi, télécharge le .torrent La‑Cale et l'ajoute dans qBittorrent (catégorie par instance, défaut: calewood).",
     )
 
     # pre-archivage
@@ -475,6 +505,14 @@ def main(argv: list[str] | None = None) -> int:
         cat = str(ns.cat or "").strip() or None
         subcat = str(ns.subcat or "").strip() or None
         do_complete = bool(ns.complete)
+        add_to_qbit = bool(getattr(ns, "add_to_qbit", False))
+        qb_host = str(getattr(ns, "qb_host", "") or "").strip()
+        qb = None
+        qb_category = "calewood"
+        if add_to_qbit:
+            if not qb_host:
+                raise RuntimeError("--qb-host est requis avec --add-to-qbit.")
+            qb, qb_category = _qbit_from_instance_with_category(qb_host)
 
         per_page = 200
         page = 1
@@ -532,6 +570,19 @@ def main(argv: list[str] | None = None) -> int:
                         action = "took+complete"
                     else:
                         action = "took"
+                    if add_to_qbit:
+                        lacale_hash = str(it.get("lacale_hash") or "").strip().lower()
+                        if not lacale_hash:
+                            raise RuntimeError("lacale_hash manquant (impossible d'ajouter à qBittorrent).")
+                        url = f"https://la-cale.space/api/torrents/download/{lacale_hash}"
+                        torrent_bytes = calewood._request_bytes_external(url)  # noqa: SLF001
+                        qb.add_torrent_file(  # type: ignore[union-attr]
+                            torrent_bytes,
+                            category=qb_category,
+                            start=True,
+                            skip_checking=True,
+                        )
+                        action += "+qbit"
                     took += 1
                 except Exception as e:  # noqa: BLE001
                     action = f"failed: {e}"
@@ -760,6 +811,14 @@ def main(argv: list[str] | None = None) -> int:
         max_items = int(ns.max_items or 0)
         max_pages_classic = int(ns.max_pages_classic or 0)
         do_complete_classic = bool(ns.complete_classic)
+        add_to_qbit = bool(getattr(ns, "add_to_qbit", False))
+        qb_host = str(getattr(ns, "qb_host", "") or "").strip()
+        qb = None
+        qb_category = "calewood"
+        if add_to_qbit:
+            if not qb_host:
+                raise RuntimeError("--qb-host est requis avec --add-to-qbit.")
+            qb, qb_category = _qbit_from_instance_with_category(qb_host)
 
         per_page = 200
         scanned_classic = 0
@@ -801,6 +860,7 @@ def main(argv: list[str] | None = None) -> int:
                             "id": int(it.get("id") or 0),
                             "size_bytes": sz,
                             "name": str(it.get("name") or ""),
+                            "lacale_hash": str(it.get("lacale_hash") or ""),
                         }
                     )
             if not has_more:
@@ -840,6 +900,19 @@ def main(argv: list[str] | None = None) -> int:
                         action = "took+complete"
                     else:
                         action = "took"
+                    if add_to_qbit:
+                        lacale_hash = str(it.get("lacale_hash") or "").strip().lower()
+                        if not lacale_hash:
+                            raise RuntimeError("lacale_hash manquant (impossible d'ajouter à qBittorrent).")
+                        url = f"https://la-cale.space/api/torrents/download/{lacale_hash}"
+                        torrent_bytes = calewood._request_bytes_external(url)  # noqa: SLF001
+                        qb.add_torrent_file(  # type: ignore[union-attr]
+                            torrent_bytes,
+                            category=qb_category,
+                            start=True,
+                            skip_checking=True,
+                        )
+                        action += "+qbit"
                     took += 1
                 except Exception as e:  # noqa: BLE001
                     action = f"failed: {e}"
@@ -865,6 +938,14 @@ def main(argv: list[str] | None = None) -> int:
         subcat = str(ns.subcat or "").strip() or None
         max_items = int(ns.max_items or 0)
         do_complete = bool(ns.complete)
+        add_to_qbit = bool(getattr(ns, "add_to_qbit", False))
+        qb_host = str(getattr(ns, "qb_host", "") or "").strip()
+        qb = None
+        qb_category = "calewood"
+        if add_to_qbit:
+            if not qb_host:
+                raise RuntimeError("--qb-host est requis avec --add-to-qbit.")
+            qb, qb_category = _qbit_from_instance_with_category(qb_host)
 
         per_page = 200
         page = 1
@@ -928,6 +1009,19 @@ def main(argv: list[str] | None = None) -> int:
                         time.sleep(1)
                         calewood.complete_archive(str(aid))
                     action = "took" if not do_complete else "took+complete"
+                    if add_to_qbit:
+                        lacale_hash = str(it.get("lacale_hash") or "").strip().lower()
+                        if not lacale_hash:
+                            raise RuntimeError("lacale_hash manquant (impossible d'ajouter à qBittorrent).")
+                        url = f"https://la-cale.space/api/torrents/download/{lacale_hash}"
+                        torrent_bytes = calewood._request_bytes_external(url)  # noqa: SLF001
+                        qb.add_torrent_file(  # type: ignore[union-attr]
+                            torrent_bytes,
+                            category=qb_category,
+                            start=True,
+                            skip_checking=True,
+                        )
+                        action += "+qbit"
                     took += 1
                 except Exception as e:  # noqa: BLE001
                     action = f"failed: {e}"
