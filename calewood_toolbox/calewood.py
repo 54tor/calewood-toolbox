@@ -89,7 +89,7 @@ class CalewoodClient:
             raise RuntimeError(f"Calewood HTTP {e.code} {e.reason}: {snippet}") from e
 
     def _request_bytes_external(self, url: str, *, timeout: int = 60) -> bytes:
-        """GET an absolute URL and return response bytes (used for La-Cale torrent downloads)."""
+        """GET une URL absolue et retourne les bytes (utilisé pour les downloads La‑Cale)."""
         req = urllib.request.Request(str(url), headers={}, method="GET")
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310

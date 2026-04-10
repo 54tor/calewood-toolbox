@@ -55,7 +55,7 @@ Le CLI charge automatiquement un fichier `.env` s’il est présent dans le rép
 
 ### Instances qBittorrent
 
-Provide instances via JSON:
+Définir des instances via JSON :
 
 ```bash
 export QBIT_INSTANCES_JSON='[
