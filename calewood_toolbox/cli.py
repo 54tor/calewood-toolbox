@@ -361,37 +361,37 @@ def main(argv: list[str] | None = None) -> int:
 
     qqueue = qsub.add_parser("dl-queue", help="Statistiques de file de téléchargement.")
     qqueue.add_argument("--qb-host", required=True, help="Alias d'instance qBittorrent (name).")
-    qsync = qsub.add_parser("sync", help="Synchronise deux qBittorrent en copiant les torrents manquants dans la destination.")
-    qsync.add_argument("--src", required=True, help="Alias d'instance qBittorrent source.")
-    qsync.add_argument("--dst", required=True, help="Alias d'instance qBittorrent destination.")
-    qsync.add_argument(
+    qmirror = qsub.add_parser("mirror", help="Synchronise deux qBittorrent en copiant les torrents manquants dans la destination.")
+    qmirror.add_argument("--src", required=True, help="Alias d'instance qBittorrent source.")
+    qmirror.add_argument("--dst", required=True, help="Alias d'instance qBittorrent destination.")
+    qmirror.add_argument(
         "--category",
         default="",
-        help="Catégorie à utiliser à l'ajout dans la destination (défaut: catégorie `sync_category` de l'instance destination, sinon `calewood-sync`).",
+        help="Catégorie à utiliser à l'ajout dans la destination (défaut: catégorie `mirror_category` de l'instance destination, sinon `calewood-mirror`).",
     )
-    qsync.add_argument(
+    qmirror.add_argument(
         "--start",
         action="store_true",
         help="Démarre les torrents ajoutés dans la destination (défaut: paused).",
     )
-    qsync.add_argument(
+    qmirror.add_argument(
         "--skip-checking",
         action="store_true",
         default=True,
         help="Conserve le comportement sans vérification des données (défaut: activé).",
     )
-    qsync.add_argument(
+    qmirror.add_argument(
         "--no-skip-checking",
         dest="skip_checking",
         action="store_false",
         help="Force la vérification des données à l'ajout.",
     )
-    qsync.add_argument(
+    qmirror.add_argument(
         "--only-category",
         default="",
         help="Filtre la source sur une catégorie exacte avant comparaison.",
     )
-    qsync.add_argument(
+    qmirror.add_argument(
         "--limit",
         type=int,
         default=0,
@@ -646,11 +646,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"instance={str(ns.qb_host).lower()} queuedDL={queued} left_gib={left_gib:.2f}")
         return 0
 
-    if ns.cmd == "qbit" and ns.qbit_cmd == "sync":
+    if ns.cmd == "qbit" and ns.qbit_cmd == "mirror":
         src = _qbit_from_instance(ns.src)
         dst = _qbit_from_instance(ns.dst)
         src_category = str(ns.only_category or "").strip() or None
-        dst_category = str(ns.category or "").strip() or _qbit_instance_category(str(ns.dst), "sync_category", "calewood-sync")
+        dst_category = str(ns.category or "").strip() or _qbit_instance_category(str(ns.dst), "mirror_category", "calewood-mirror")
         start = bool(ns.start)
         skip_checking = bool(ns.skip_checking)
         limit = int(ns.limit or 0)
