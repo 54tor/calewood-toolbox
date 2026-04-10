@@ -400,23 +400,23 @@ def main(argv: list[str] | None = None) -> int:
     qmirror.add_argument(
         "--limit",
         type=int,
-        default=0,
+        default=50,
         metavar="N",
-        help="Limite le nombre de torrents copiés (0 = illimité).",
+        help="Limite le nombre de torrents copiés (défaut: 50, 0 = illimité).",
     )
     qmirror.add_argument(
         "--batch-size",
         type=int,
-        default=20,
+        default=5,
         metavar="N",
-        help="Nombre maximal de torrents ajoutés par lot (défaut: 20).",
+        help="Nombre maximal de torrents ajoutés par lot (défaut: 5).",
     )
     qmirror.add_argument(
         "--batch-sleep-seconds",
         type=int,
-        default=1,
+        default=2,
         metavar="S",
-        help="Pause entre les lots d'ajout (défaut: 1).",
+        help="Pause entre les lots d'ajout (défaut: 2).",
     )
 
     # torrents
@@ -677,8 +677,8 @@ def main(argv: list[str] | None = None) -> int:
         start = bool(ns.start)
         skip_checking = bool(ns.skip_checking)
         limit = int(ns.limit or 0)
-        batch_size = max(1, int(ns.batch_size or 20))
-        batch_sleep = max(0, int(ns.batch_sleep_seconds or 1))
+        batch_size = max(1, int(ns.batch_size or 5))
+        batch_sleep = max(0, int(ns.batch_sleep_seconds or 2))
 
         src_torrents = src.list_torrents(category=src_category)
         dst_hashes_by_name = {
