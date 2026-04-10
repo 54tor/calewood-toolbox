@@ -38,6 +38,40 @@ def _fmt_gib(nbytes: int) -> str:
     return f"{(v / (1024**3)):.2f} GiB"
 
 
+def _has_desktop() -> bool:
+    import os
+    import shutil
+
+    if not shutil.which("xdg-open"):
+        return False
+    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+
+
+def _open_urls(urls: list[str], *, batch: int = 10, sleep_seconds: int = 1) -> int:
+    """
+    Affiche toujours les URLs (stdout).
+    Ouvre via `xdg-open` uniquement si un environnement desktop est détecté.
+    Retourne le nombre d'URLs réellement ouvertes.
+    """
+    urls = [str(u).strip() for u in (urls or []) if str(u).strip()]
+    if not urls:
+        return 0
+    for u in urls:
+        print(u)
+    if not _has_desktop():
+        return 0
+    opened = 0
+    for i, url in enumerate(urls, start=1):
+        try:
+            subprocess.Popen(["xdg-open", url])  # noqa: S603,S607
+            opened += 1
+        except Exception:
+            pass
+        if batch > 0 and i % batch == 0:
+            time.sleep(max(0, int(sleep_seconds)))
+    return opened
+
+
 def _qbit_from_instance(name: str):
     from .qbit import QbitClient
 
@@ -532,13 +566,8 @@ def main(argv: list[str] | None = None) -> int:
         )
         if ns.open_lacale_download:
             urls = [f"https://la-cale.space/api/torrents/download/{h}" for (_, _, h, _) in missing_rows if h]
-            for i, url in enumerate(urls, start=1):
-                try:
-                    subprocess.Popen(["xdg-open", url])  # noqa: S603,S607
-                except Exception:
-                    print(url)
-                if i % 10 == 0:
-                    time.sleep(1)
+            opened = _open_urls(urls, batch=10, sleep_seconds=1)
+            print(f"opened={opened} urls={len(urls)}", file=sys.stderr)
         return 0
 
     if ns.cmd == "archives" and ns.archives_cmd == "take-smallest":
@@ -627,13 +656,8 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         if open_lacale and opened_urls and not ns.dry_run:
-            for i, url in enumerate(opened_urls, start=1):
-                try:
-                    subprocess.Popen(["xdg-open", url])  # noqa: S603,S607
-                except Exception:
-                    print(url)
-                if open_batch > 0 and i % open_batch == 0:
-                    time.sleep(max(0, open_sleep))
+            opened = _open_urls(opened_urls, batch=open_batch, sleep_seconds=open_sleep)
+            print(f"opened={opened} urls={len(opened_urls)}", file=sys.stderr)
         return 0
 
     if ns.cmd == "fiches" and ns.f_cmd == "take-awaiting":
@@ -968,13 +992,8 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         if open_lacale and opened_urls and not ns.dry_run:
-            for i, url in enumerate(opened_urls, start=1):
-                try:
-                    subprocess.Popen(["xdg-open", url])  # noqa: S603,S607
-                except Exception:
-                    print(url)
-                if open_batch > 0 and i % open_batch == 0:
-                    time.sleep(max(0, open_sleep))
+            opened = _open_urls(opened_urls, batch=open_batch, sleep_seconds=open_sleep)
+            print(f"opened={opened} urls={len(opened_urls)}", file=sys.stderr)
         return 0
 
     if ns.cmd == "archives" and ns.archives_cmd == "take-budget-gib":
@@ -1073,13 +1092,8 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         if open_lacale and opened_urls and not ns.dry_run:
-            for i, url in enumerate(opened_urls, start=1):
-                try:
-                    subprocess.Popen(["xdg-open", url])  # noqa: S603,S607
-                except Exception:
-                    print(url)
-                if open_batch > 0 and i % open_batch == 0:
-                    time.sleep(max(0, open_sleep))
+            opened = _open_urls(opened_urls, batch=open_batch, sleep_seconds=open_sleep)
+            print(f"opened={opened} urls={len(opened_urls)}", file=sys.stderr)
         return 0
 
     if ns.cmd == "prearchivage" and ns.pre_cmd == "take-budget-gib":
