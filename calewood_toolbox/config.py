@@ -1,9 +1,9 @@
 """
-Project configuration.
+Configuration du projet.
 
-This repository is intentionally anonymized: no real endpoints or credentials are committed.
+Ce dépôt est volontairement anonymisé : aucun endpoint privé ni identifiant n’est commité.
 
-Fill values via environment variables or by editing this file locally (do not commit secrets).
+Tout se configure via variables d’environnement à l’exécution.
 """
 
 from __future__ import annotations
@@ -50,8 +50,8 @@ QBIT_REQUIRED_TRACKER_PREFIX = _env("QBIT_REQUIRED_TRACKER_PREFIX", "https://tra
 QBIT_CATEGORY = _env("QBIT_CATEGORY", "cross-seed")
 QBIT_SUCCESS_TAG = _env("QBIT_SUCCESS_TAG", "pointé")
 
-# Instances must be configured to use --qb-host.
-# Example:
+# Les instances doivent être configurées pour utiliser --qb-host.
+# Exemple :
 #   export QBIT_INSTANCES_JSON='[{"name":"box","base_url":"http://host:8080","username":"user","password":"pass"}]'
 _QBIT_INSTANCES_JSON = os.environ.get("QBIT_INSTANCES_JSON", "").strip()
 if _QBIT_INSTANCES_JSON:
