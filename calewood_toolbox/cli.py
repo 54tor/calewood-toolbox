@@ -363,11 +363,17 @@ def main(argv: list[str] | None = None) -> int:
     qqueue.add_argument("--qb-host", required=True, help="Alias d'instance qBittorrent (name).")
     qmirror = qsub.add_parser("mirror", help="Synchronise deux qBittorrent en copiant les torrents manquants dans la destination.")
     qmirror.add_argument("--src", required=True, help="Alias d'instance qBittorrent source.")
-    qmirror.add_argument("--dst", required=True, help="Alias d'instance qBittorrent destination.")
+    qmirror.add_argument(
+        "--dst",
+        action="append",
+        required=True,
+        metavar="DST",
+        help="Alias d'instance qBittorrent destination (répétable).",
+    )
     qmirror.add_argument(
         "--category",
         default="",
-        help="Catégorie à utiliser à l'ajout dans la destination (défaut: catégorie `mirror_category` de l'instance destination, sinon `calewood-mirror`).",
+        help="Catégorie à utiliser à l'ajout dans les destinations (défaut: catégorie `mirror_category` de chaque instance destination, sinon `calewood-mirror`).",
     )
     qmirror.add_argument(
         "--start",
@@ -648,18 +654,24 @@ def main(argv: list[str] | None = None) -> int:
 
     if ns.cmd == "qbit" and ns.qbit_cmd == "mirror":
         src = _qbit_from_instance(ns.src)
-        dst = _qbit_from_instance(ns.dst)
+        dst_names = [str(v).strip() for v in (ns.dst or []) if str(v).strip()]
+        if not dst_names:
+            raise RuntimeError("Au moins une destination `--dst` est requise.")
+        dst_clients = {name: _qbit_from_instance(name) for name in dst_names}
         src_category = str(ns.only_category or "").strip() or None
-        dst_category = str(ns.category or "").strip() or _qbit_instance_category(str(ns.dst), "mirror_category", "calewood-mirror")
+        dst_category = str(ns.category or "").strip()
         start = bool(ns.start)
         skip_checking = bool(ns.skip_checking)
         limit = int(ns.limit or 0)
 
         src_torrents = src.list_torrents(category=src_category)
-        dst_hashes = {
-            str(t.get("hash", "")).strip().lower()
-            for t in dst.list_torrents(category=None)
-            if str(t.get("hash", "")).strip()
+        dst_hashes_by_name = {
+            name: {
+                str(t.get("hash", "")).strip().lower()
+                for t in client.list_torrents(category=None)
+                if str(t.get("hash", "")).strip()
+            }
+            for name, client in dst_clients.items()
         }
 
         copied = 0
@@ -670,28 +682,35 @@ def main(argv: list[str] | None = None) -> int:
             h = str(t.get("hash", "")).strip().lower()
             if not h:
                 continue
-            if h in dst_hashes:
+            if all(h in hashes for hashes in dst_hashes_by_name.values()):
                 continue
             name = str(t.get("name") or "")
             cat = str(t.get("category") or "")
             torrent_bytes = src.export_torrent_file(h)
             if not torrent_bytes:
                 continue
-            if not ns.dry_run:
-                dst.add_torrent_file(
-                    torrent_bytes,
-                    category=dst_category,
-                    start=start,
-                    skip_checking=skip_checking,
-                )
-            copied += 1
-            missing_rows.append((h, cat, name[:60], "dry-run" if ns.dry_run else "copied"))
+            actions: list[str] = []
+            for dst_name, dst_client in dst_clients.items():
+                if h in dst_hashes_by_name[dst_name]:
+                    continue
+                category = dst_category or _qbit_instance_category(dst_name, "mirror_category", "calewood-mirror")
+                if not ns.dry_run:
+                    dst_client.add_torrent_file(
+                        torrent_bytes,
+                        category=category,
+                        start=start,
+                        skip_checking=skip_checking,
+                    )
+                actions.append(dst_name)
+            if actions:
+                copied += 1
+                missing_rows.append((h, cat, name[:60], ",".join(actions) if actions else "copied"))
             if limit > 0 and copied >= limit:
                 break
 
         _print_table(("HASH", "CAT", "NAME", "ACTION"), missing_rows)
         print(
-            f"src={str(ns.src).lower()} dst={str(ns.dst).lower()} scanned={scanned} dst_hashes={len(dst_hashes)} copied={copied} category={dst_category} start={start} skip_checking={skip_checking}",
+            f"src={str(ns.src).lower()} dsts={','.join(dst_names)} scanned={scanned} copied={copied} category={dst_category or 'instance'} start={start} skip_checking={skip_checking}",
             file=sys.stderr,
         )
         return 0

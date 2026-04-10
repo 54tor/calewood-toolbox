@@ -125,7 +125,7 @@ calewood-toolbox uploads take-selected \
 
 - `qbit get --qb-host NAME HASH` : récupère un torrent par hash.
 - `qbit dl-queue --qb-host NAME` : stats file de téléchargement.
-- `qbit mirror --src SRC --dst DST` : copie les torrents présents dans la source mais absents dans la destination.
+- `qbit mirror --src SRC --dst DST [--dst DST2 ...]` : copie les torrents présents dans la source mais absents dans une ou plusieurs destinations.
 - `torrents q Q` : recherche via `GET /api/torrent/list?q=...` (nom ou `sharewood_hash`).
 
 ### Scénarios (docs)
