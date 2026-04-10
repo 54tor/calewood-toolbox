@@ -30,7 +30,8 @@ Options (filtres côté API) :
 - `--cat CAT` / `--subcat SUBCAT` : filtre catégorie / sous‑catégorie (exact)
 - `--q Q` : recherche
 - `--complete` : enchaîne `complete` après `take` (attend 1 seconde entre les 2)
-- `--qb-host NAME --add-to-qbit` : après un `take` réussi, télécharge le `.torrent` La‑Cale et l’ajoute dans qBittorrent (**started**, `skip_checking` activé)
+- `--open-lacale-download` : après un `take` réussi, **ouvre** le lien de téléchargement La‑Cale `https://la-cale.space/api/torrents/download/{lacale_hash}`
+- `--open-batch N` / `--open-sleep-seconds S` : ouvre les liens par lots (pour éviter trop d’onglets d’un coup)
 
 Exemples :
 
@@ -45,7 +46,7 @@ calewood-toolbox --just-do-it archives take-smallest 15 --complete
 calewood-toolbox archives take-smallest 15 --cat "Vidéos" --subcat "Films"
 
 # Prendre et ajouter dans qBittorrent (catégorie qBittorrent définie par instance, défaut: calewood)
-calewood-toolbox --just-do-it archives take-smallest 15 --qb-host sd-183106 --add-to-qbit
+calewood-toolbox --just-do-it archives take-smallest 15 --open-lacale-download
 ```
 
 ### 2) Prendre jusqu’à un budget en GiB
@@ -68,7 +69,7 @@ Options :
 - `--max-items N` : limite le nombre d’items pris (0 = illimité)
 - `--max-pages-classic N` *(uniquement via `take budget-gib`, voir plus bas)* : limite le scan pagination (0 = toutes)
 - `--complete`
-- `--qb-host NAME --add-to-qbit` : après un `take` réussi, ajoute aussi dans qBittorrent (started + skip_checking)
+- `--open-lacale-download` : ouvre les liens La‑Cale des items pris
 
 Exemples :
 
@@ -83,7 +84,7 @@ calewood-toolbox --just-do-it archives take-budget-gib 150 --complete
 calewood-toolbox archives take-budget-gib 150 --max-items 40
 
 # Exécuter + ajouter dans qBittorrent
-calewood-toolbox --just-do-it archives take-budget-gib 150 --qb-host sd-183106 --add-to-qbit
+calewood-toolbox --just-do-it archives take-budget-gib 150 --open-lacale-download
 ```
 
 ## Alias : `take budget-gib`
@@ -105,7 +106,7 @@ Options :
 - `--max-items N`
 - `--max-pages-classic N` : limite le scan de pages (0 = toutes)
 - `--complete-classic`
-- `--qb-host NAME --add-to-qbit` : après un `take` réussi, ajoute aussi dans qBittorrent (started + skip_checking)
+- `--open-lacale-download` : ouvre les liens La‑Cale des items pris
 
 Exemples :
 
@@ -117,20 +118,9 @@ calewood-toolbox take budget-gib 150 --max-pages-classic 2
 calewood-toolbox --just-do-it take budget-gib 150 --complete-classic
 
 # Exécuter + ajouter dans qBittorrent
-calewood-toolbox --just-do-it take budget-gib 150 --qb-host sd-183106 --add-to-qbit
+calewood-toolbox --just-do-it take budget-gib 150 --open-lacale-download
 ```
 
-## Configuration qBittorrent : catégorie par instance
+## Note
 
-La catégorie qBittorrent utilisée est :
-
-- `calewood` par défaut
-- ou `category` si défini dans `QBIT_INSTANCES_JSON`
-
-Exemple `.env` :
-
-```bash
-QBIT_INSTANCES_JSON='[
-  {"name":"sd-183106","base_url":"https://qbittorrent.exemple","username":"user","password":"pass","category":"calewood"}
-]'
-```
+Ce scénario n’ajoute pas automatiquement dans qBittorrent : il **affiche / ouvre** uniquement les liens La‑Cale.
