@@ -59,7 +59,7 @@ Définir des instances via JSON :
 
 ```bash
 export QBIT_INSTANCES_JSON='[
-  {"name":"box","base_url":"http://qb:8080","username":"user","password":"pass"}
+  {"name":"box","base_url":"http://qb:8080","username":"user","password":"pass","sync_category":"calewood-sync"}
 ]'
 ```
 
@@ -68,6 +68,11 @@ Puis exécute avec :
 ```bash
 calewood-toolbox qbit dl-queue --qb-host box
 ```
+
+Champs optionnels par instance :
+
+- `sync_category` : catégorie utilisée par `qbit sync` à l'ajout dans la destination
+- `category_upload` : catégorie utilisée par les prises de fichiers Sharewood vers qBittorrent
 
 ## Commandes
 
@@ -120,6 +125,7 @@ calewood-toolbox uploads take-selected \
 
 - `qbit get --qb-host NAME HASH` : récupère un torrent par hash.
 - `qbit dl-queue --qb-host NAME` : stats file de téléchargement.
+- `qbit sync --src SRC --dst DST` : copie les torrents présents dans la source mais absents dans la destination.
 - `torrents q Q` : recherche via `GET /api/torrent/list?q=...` (nom ou `sharewood_hash`).
 
 ### Scénarios (docs)

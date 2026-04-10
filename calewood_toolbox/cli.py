@@ -217,6 +217,18 @@ def _qbit_from_instance_with_upload_category(name: str):
     return qb, "calewood-upload"
 
 
+def _qbit_instance_category(name: str, field: str, default: str) -> str:
+    n = (name or "").strip().lower()
+    for inst in getattr(config, "QBIT_INSTANCES", []):
+        if not isinstance(inst, dict):
+            continue
+        if str(inst.get("name", "")).strip().lower() != n:
+            continue
+        cat = str(inst.get(field) or "").strip()
+        return cat or default
+    return default
+
+
 def _calewood_client() -> CalewoodClient:
     token = _env("CALEWOOD_TOKEN", config.CALEWOOD_TOKEN).strip()
     if not token:
@@ -349,6 +361,43 @@ def main(argv: list[str] | None = None) -> int:
 
     qqueue = qsub.add_parser("dl-queue", help="Statistiques de file de téléchargement.")
     qqueue.add_argument("--qb-host", required=True, help="Alias d'instance qBittorrent (name).")
+    qsync = qsub.add_parser("sync", help="Synchronise deux qBittorrent en copiant les torrents manquants dans la destination.")
+    qsync.add_argument("--src", required=True, help="Alias d'instance qBittorrent source.")
+    qsync.add_argument("--dst", required=True, help="Alias d'instance qBittorrent destination.")
+    qsync.add_argument(
+        "--category",
+        default="",
+        help="Catégorie à utiliser à l'ajout dans la destination (défaut: catégorie `sync_category` de l'instance destination, sinon `calewood-sync`).",
+    )
+    qsync.add_argument(
+        "--start",
+        action="store_true",
+        help="Démarre les torrents ajoutés dans la destination (défaut: paused).",
+    )
+    qsync.add_argument(
+        "--skip-checking",
+        action="store_true",
+        default=True,
+        help="Conserve le comportement sans vérification des données (défaut: activé).",
+    )
+    qsync.add_argument(
+        "--no-skip-checking",
+        dest="skip_checking",
+        action="store_false",
+        help="Force la vérification des données à l'ajout.",
+    )
+    qsync.add_argument(
+        "--only-category",
+        default="",
+        help="Filtre la source sur une catégorie exacte avant comparaison.",
+    )
+    qsync.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        metavar="N",
+        help="Limite le nombre de torrents copiés (0 = illimité).",
+    )
 
     # torrents
     torrents = sub.add_parser("torrents", help="Recherche torrents (api/torrent).")
@@ -595,6 +644,56 @@ def main(argv: list[str] | None = None) -> int:
                     pass
         left_gib = left_bytes / (1024**3)
         print(f"instance={str(ns.qb_host).lower()} queuedDL={queued} left_gib={left_gib:.2f}")
+        return 0
+
+    if ns.cmd == "qbit" and ns.qbit_cmd == "sync":
+        src = _qbit_from_instance(ns.src)
+        dst = _qbit_from_instance(ns.dst)
+        src_category = str(ns.only_category or "").strip() or None
+        dst_category = str(ns.category or "").strip() or _qbit_instance_category(str(ns.dst), "sync_category", "calewood-sync")
+        start = bool(ns.start)
+        skip_checking = bool(ns.skip_checking)
+        limit = int(ns.limit or 0)
+
+        src_torrents = src.list_torrents(category=src_category)
+        dst_hashes = {
+            str(t.get("hash", "")).strip().lower()
+            for t in dst.list_torrents(category=None)
+            if str(t.get("hash", "")).strip()
+        }
+
+        copied = 0
+        scanned = 0
+        missing_rows: list[tuple[str, str, str, str]] = []
+        for t in src_torrents:
+            scanned += 1
+            h = str(t.get("hash", "")).strip().lower()
+            if not h:
+                continue
+            if h in dst_hashes:
+                continue
+            name = str(t.get("name") or "")
+            cat = str(t.get("category") or "")
+            torrent_bytes = src.export_torrent_file(h)
+            if not torrent_bytes:
+                continue
+            if not ns.dry_run:
+                dst.add_torrent_file(
+                    torrent_bytes,
+                    category=dst_category,
+                    start=start,
+                    skip_checking=skip_checking,
+                )
+            copied += 1
+            missing_rows.append((h, cat, name[:60], "dry-run" if ns.dry_run else "copied"))
+            if limit > 0 and copied >= limit:
+                break
+
+        _print_table(("HASH", "CAT", "NAME", "ACTION"), missing_rows)
+        print(
+            f"src={str(ns.src).lower()} dst={str(ns.dst).lower()} scanned={scanned} dst_hashes={len(dst_hashes)} copied={copied} category={dst_category} start={start} skip_checking={skip_checking}",
+            file=sys.stderr,
+        )
         return 0
 
     if ns.cmd == "torrents" and ns.t_cmd == "q":
