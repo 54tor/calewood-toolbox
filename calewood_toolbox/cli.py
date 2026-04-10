@@ -380,6 +380,21 @@ def main(argv: list[str] | None = None) -> int:
         default="",
         help="Filtre local par état exact (optionnel).",
     )
+    qdiff = qsub.add_parser("diff", help="Compare deux instances qBittorrent et affiche les torrents manquants de chaque côté.")
+    qdiff.add_argument("--src", required=True, help="Alias d'instance qBittorrent source.")
+    qdiff.add_argument("--dst", required=True, help="Alias d'instance qBittorrent destination.")
+    qdiff.add_argument(
+        "--category",
+        default="",
+        help="Filtre une catégorie exacte côté source et destination (optionnel).",
+    )
+    qdiff.add_argument(
+        "--limit",
+        type=int,
+        default=50,
+        metavar="N",
+        help="Limite le nombre de lignes affichées par sens (défaut: 50, 0 = illimité).",
+    )
     qmirror = qsub.add_parser("mirror", help="Synchronise deux qBittorrent en copiant les torrents manquants dans la destination.")
     qmirror.add_argument("--src", required=True, help="Alias d'instance qBittorrent source.")
     qmirror.add_argument(
@@ -712,6 +727,37 @@ def main(argv: list[str] | None = None) -> int:
         _print_table(("HASH", "STATE", "CAT", "SIZE", "LEFT", "NAME"), rows)
         print(
             f"instance={str(ns.qb_host).lower()} torrents={len(torrents)} shown={shown} category={category or 'all'} only_state={only_state or 'all'}",
+            file=sys.stderr,
+        )
+        return 0
+
+    if ns.cmd == "qbit" and ns.qbit_cmd == "diff":
+        src = _qbit_from_instance(ns.src)
+        dst = _qbit_from_instance(ns.dst)
+        category = str(ns.category or "").strip() or None
+        limit = int(ns.limit or 50)
+
+        src_torrents = src.list_torrents(category=category)
+        dst_torrents = dst.list_torrents(category=category)
+        src_hashes = {
+            str(t.get("hash", "")).strip().lower(): str(t.get("name") or "") for t in src_torrents if str(t.get("hash", "")).strip()
+        }
+        dst_hashes = {
+            str(t.get("hash", "")).strip().lower(): str(t.get("name") or "") for t in dst_torrents if str(t.get("hash", "")).strip()
+        }
+
+        src_missing = [(h, name) for h, name in src_hashes.items() if h not in dst_hashes]
+        dst_missing = [(h, name) for h, name in dst_hashes.items() if h not in src_hashes]
+
+        rows: list[tuple[str, str, str, str]] = []
+        for h, name in src_missing[: limit if limit > 0 else None]:
+            rows.append(("src", h[:12], "missing_dst", name[:80]))
+        for h, name in dst_missing[: limit if limit > 0 else None]:
+            rows.append(("dst", h[:12], "missing_src", name[:80]))
+
+        _print_table(("SIDE", "HASH", "STATUS", "NAME"), rows)
+        print(
+            f"src={str(ns.src).lower()} dst={str(ns.dst).lower()} category={category or 'all'} src_torrents={len(src_torrents)} dst_torrents={len(dst_torrents)} src_missing={len(src_missing)} dst_missing={len(dst_missing)}",
             file=sys.stderr,
         )
         return 0
