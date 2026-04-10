@@ -78,6 +78,114 @@ def _print_urls(urls: list[str]) -> None:
         print(u)
 
 
+def _iter_archives(
+    calewood: CalewoodClient,
+    *,
+    status: str,
+    q: str | None,
+    cat: str | None,
+    subcat: str | None,
+    max_pages: int = 0,
+) -> list[dict]:
+    """Retourne les items (paged) triés côté API par taille croissante."""
+    per_page = 200
+    page = 1
+    items_all: list[dict] = []
+    while True:
+        resp = calewood.list_archives(
+            status=status,
+            q=q,
+            cat=cat,
+            subcat=subcat,
+            sort="size_bytes",
+            order="asc",
+            p=page,
+            per_page=per_page,
+            v1_only=0,
+        )
+        if not isinstance(resp, dict) or not resp.get("success"):
+            raise RuntimeError(f"Calewood archive list failed at page {page}: {resp}")
+        batch = resp.get("data")
+        meta = resp.get("meta") if isinstance(resp.get("meta"), dict) else {}
+        has_more = bool(meta.get("has_more")) if isinstance(meta, dict) else False
+        if isinstance(batch, list):
+            for it in batch:
+                if isinstance(it, dict):
+                    items_all.append(it)
+        if not has_more:
+            break
+        page += 1
+        if max_pages > 0 and page > max_pages:
+            break
+    return items_all
+
+
+def _size_bytes(it: dict) -> int:
+    try:
+        return int(it.get("size_bytes") or 0)
+    except Exception:  # noqa: BLE001
+        return 0
+
+
+def _select_smallest(items_sorted: list[dict], *, n: int) -> list[dict]:
+    if n <= 0:
+        return []
+    return items_sorted[:n]
+
+
+def _select_budget(items_sorted: list[dict], *, budget_gib: int, max_items: int = 0) -> tuple[list[dict], int]:
+    if budget_gib <= 0:
+        return [], 0
+    budget_bytes = budget_gib * (1024**3)
+    selected: list[dict] = []
+    total_bytes = 0
+    for it in items_sorted:
+        sz = _size_bytes(it)
+        if sz <= 0:
+            continue
+        if total_bytes + sz > budget_bytes:
+            continue
+        selected.append(it)
+        total_bytes += sz
+        if max_items > 0 and len(selected) >= max_items:
+            break
+    return selected, total_bytes
+
+
+def _lacale_urls(items: list[dict]) -> list[str]:
+    urls: list[str] = []
+    for it in items:
+        h = str(it.get("lacale_hash") or "").strip().lower()
+        if h:
+            urls.append(f"https://la-cale.space/api/torrents/download/{h}")
+    return urls
+
+
+def _maybe_print_and_open_urls(
+    urls: list[str],
+    *,
+    print_urls: bool,
+    open_urls: bool,
+    batch: int,
+    sleep_seconds: int,
+    dry_run: bool,
+) -> None:
+    if not urls:
+        return
+    if print_urls:
+        _print_urls(urls)
+    if open_urls and not dry_run:
+        opened = _open_urls(urls, batch=batch, sleep_seconds=sleep_seconds)
+        print(f"opened={opened} urls={len(urls)}", file=sys.stderr)
+
+
+def _take_archive(calewood: CalewoodClient, archive_id: int, *, complete: bool) -> None:
+    calewood.take_archive(str(int(archive_id)))
+    if complete:
+        time.sleep(1)
+        calewood.complete_archive(str(int(archive_id)))
+
+
 def _qbit_from_instance(name: str):
     from .qbit import QbitClient
 
@@ -605,68 +713,26 @@ def main(argv: list[str] | None = None) -> int:
         print_urls = bool(getattr(ns, "print_lacale_download_urls", False))
         open_batch = int(getattr(ns, "open_batch", 10) or 10)
         open_sleep = int(getattr(ns, "open_sleep_seconds", 1) or 1)
-        opened_urls: list[str] = []
-
-        per_page = 200
-        page = 1
-        scanned = 0
-        selected: list[dict] = []
-        while True:
-            resp = calewood.list_archives(
-                status=status,
-                q=q,
-                cat=cat,
-                subcat=subcat,
-                sort="size_bytes",
-                order="asc",
-                p=page,
-                per_page=per_page,
-                v1_only=0,
-            )
-            if not isinstance(resp, dict) or not resp.get("success"):
-                raise RuntimeError(f"Calewood archive list failed at page {page}: {resp}")
-            items = resp.get("data")
-            meta = resp.get("meta") if isinstance(resp.get("meta"), dict) else {}
-            has_more = bool(meta.get("has_more")) if isinstance(meta, dict) else False
-            if isinstance(items, list):
-                for it in items:
-                    if not isinstance(it, dict):
-                        continue
-                    scanned += 1
-                    selected.append(it)
-                    if len(selected) >= n:
-                        has_more = False
-                        break
-            if not has_more:
-                break
-            page += 1
+        items_all = _iter_archives(calewood, status=status, q=q, cat=cat, subcat=subcat, max_pages=0)
+        selected = _select_smallest(items_all, n=n)
 
         rows: list[tuple[str, str, str, str]] = []
         took = 0
         failed = 0
         total_bytes = 0
+        took_items: list[dict] = []
         for it in selected[:n]:
             aid = int(it.get("id") or 0)
             name = str(it.get("name") or "")
-            try:
-                sz = int(it.get("size_bytes") or 0)
-            except Exception:  # noqa: BLE001
-                sz = 0
+            sz = _size_bytes(it)
             total_bytes += max(sz, 0)
             action = "dry-run"
             if not ns.dry_run:
                 try:
-                    calewood.take_archive(str(aid))
-                    if do_complete:
-                        time.sleep(1)
-                        calewood.complete_archive(str(aid))
-                        action = "took+complete"
-                    else:
-                        action = "took"
-                    lacale_hash = str(it.get("lacale_hash") or "").strip().lower()
-                    if (open_lacale or print_urls) and lacale_hash:
-                        opened_urls.append(f"https://la-cale.space/api/torrents/download/{lacale_hash}")
+                    _take_archive(calewood, aid, complete=do_complete)
+                    action = "took+complete" if do_complete else "took"
                     took += 1
+                    took_items.append(it)
                 except Exception as e:  # noqa: BLE001
                     action = f"failed: {e}"
                     failed += 1
@@ -674,14 +740,18 @@ def main(argv: list[str] | None = None) -> int:
 
         _print_table(("ID", "SIZE", "NAME", "ACTION"), rows)
         print(
-            f"status={status} scanned={scanned} selected={len(selected[:n])} selected_gib={(total_bytes/(1024**3)):.2f} took={took} failed={failed}",
+            f"status={status} scanned={len(items_all)} selected={len(selected[:n])} selected_gib={(total_bytes/(1024**3)):.2f} took={took} failed={failed}",
             file=sys.stderr,
         )
-        if opened_urls and print_urls:
-            _print_urls(opened_urls)
-        if open_lacale and opened_urls and not ns.dry_run:
-            opened = _open_urls(opened_urls, batch=open_batch, sleep_seconds=open_sleep)
-            print(f"opened={opened} urls={len(opened_urls)}", file=sys.stderr)
+        urls = _lacale_urls(took_items if not ns.dry_run else selected)
+        _maybe_print_and_open_urls(
+            urls,
+            print_urls=print_urls,
+            open_urls=open_lacale,
+            batch=open_batch,
+            sleep_seconds=open_sleep,
+            dry_run=ns.dry_run,
+        )
         return 0
 
     if ns.cmd == "fiches" and ns.f_cmd == "take-awaiting":
@@ -890,7 +960,6 @@ def main(argv: list[str] | None = None) -> int:
         budget_gib = int(ns.gib)
         if budget_gib <= 0:
             raise RuntimeError("Budget GiB doit être > 0.")
-        budget_bytes = budget_gib * (1024**3)
 
         classic_status = str(ns.classic_status or "").strip()
         q = str(ns.q or "").strip() or None
@@ -903,7 +972,6 @@ def main(argv: list[str] | None = None) -> int:
         print_urls = bool(getattr(ns, "print_lacale_download_urls", False))
         open_batch = int(getattr(ns, "open_batch", 10) or 10)
         open_sleep = int(getattr(ns, "open_sleep_seconds", 1) or 1)
-        opened_urls: list[str] = []
         add_sw = bool(getattr(ns, "add_sharewood_to_qbit", False))
         qb_host = str(getattr(ns, "qb_host", "") or "").strip()
         qb = None
@@ -913,89 +981,29 @@ def main(argv: list[str] | None = None) -> int:
                 raise RuntimeError("--qb-host est requis avec --add-sharewood-to-qbit.")
             qb, qb_cat = _qbit_from_instance_with_upload_category(qb_host)
 
-        per_page = 200
-        scanned_classic = 0
-
-        candidates: list[dict] = []
-
-        page = 1
-        while True:
-            resp = calewood.list_archives(
-                status=classic_status,
-                q=q,
-                cat=cat,
-                subcat=subcat,
-                sort="size_bytes",
-                order="asc",
-                p=page,
-                per_page=per_page,
-                v1_only=0,
-            )
-            if not isinstance(resp, dict) or not resp.get("success"):
-                raise RuntimeError(f"Calewood archive list failed at page {page}: {resp}")
-            items = resp.get("data")
-            meta = resp.get("meta") if isinstance(resp.get("meta"), dict) else {}
-            has_more = bool(meta.get("has_more")) if isinstance(meta, dict) else False
-            if isinstance(items, list):
-                for it in items:
-                    if not isinstance(it, dict):
-                        continue
-                    scanned_classic += 1
-                    try:
-                        sz = int(it.get("size_bytes") or 0)
-                    except Exception:  # noqa: BLE001
-                        sz = 0
-                    if sz <= 0:
-                        continue
-                    candidates.append(
-                        {
-                            "source": "classic",
-                            "id": int(it.get("id") or 0),
-                            "size_bytes": sz,
-                            "name": str(it.get("name") or ""),
-                            "lacale_hash": str(it.get("lacale_hash") or ""),
-                        }
-                    )
-            if not has_more:
-                break
-            page += 1
-            if max_pages_classic > 0 and page > max_pages_classic:
-                break
-
-        candidates.sort(key=lambda it: int(it.get("size_bytes") or 0))
-
-        selected: list[dict] = []
-        total_bytes = 0
-        for it in candidates:
-            sz = int(it.get("size_bytes") or 0)
-            if total_bytes + sz > budget_bytes:
-                continue
-            selected.append(it)
-            total_bytes += sz
-            if max_items > 0 and len(selected) >= max_items:
-                break
+        items_all = _iter_archives(
+            calewood,
+            status=classic_status,
+            q=q,
+            cat=cat,
+            subcat=subcat,
+            max_pages=max_pages_classic,
+        )
+        selected, total_bytes = _select_budget(items_all, budget_gib=budget_gib, max_items=max_items)
 
         rows: list[tuple[str, ...]] = []
         took = 0
         failed = 0
+        took_items: list[dict] = []
         for it in selected:
-            src = str(it.get("source") or "")
             tid = int(it.get("id") or 0)
-            sz = int(it.get("size_bytes") or 0)
+            sz = _size_bytes(it)
             name = str(it.get("name") or "")
             action = "dry-run"
             if not ns.dry_run:
                 try:
-                    calewood.take_archive(str(tid))
-                    if do_complete_classic:
-                        time.sleep(1)
-                        calewood.complete_archive(str(tid))
-                        action = "took+complete"
-                    else:
-                        action = "took"
-                    lacale_hash = str(it.get("lacale_hash") or "").strip().lower()
-                    if (open_lacale or print_urls) and lacale_hash:
-                        opened_urls.append(f"https://la-cale.space/api/torrents/download/{lacale_hash}")
+                    _take_archive(calewood, tid, complete=do_complete_classic)
+                    action = "took+complete" if do_complete_classic else "took"
                     if add_sw:
                         torrent_bytes = calewood.download_archive_torrent_file(int(tid))
                         qb.add_torrent_file(  # type: ignore[union-attr]
@@ -1006,21 +1014,26 @@ def main(argv: list[str] | None = None) -> int:
                         )
                         action += "+qbit"
                     took += 1
+                    took_items.append(it)
                 except Exception as e:  # noqa: BLE001
                     action = f"failed: {e}"
                     failed += 1
-            rows.append((src, str(tid), _fmt_gib(sz), name[:80], action))
+            rows.append(("classic", str(tid), _fmt_gib(sz), name[:80], action))
 
         _print_table(("SRC", "ID", "SIZE", "NAME", "ACTION"), rows)
         print(
-            f"scanned_classic={scanned_classic} candidates={len(candidates)} selected={len(selected)} budget_gib={budget_gib} selected_gib={(total_bytes/(1024**3)):.2f} took={took} failed={failed}",
+            f"scanned_classic={len(items_all)} selected={len(selected)} budget_gib={budget_gib} selected_gib={(total_bytes/(1024**3)):.2f} took={took} failed={failed}",
             file=sys.stderr,
         )
-        if opened_urls and print_urls:
-            _print_urls(opened_urls)
-        if open_lacale and opened_urls and not ns.dry_run:
-            opened = _open_urls(opened_urls, batch=open_batch, sleep_seconds=open_sleep)
-            print(f"opened={opened} urls={len(opened_urls)}", file=sys.stderr)
+        urls = _lacale_urls(took_items if not ns.dry_run else selected)
+        _maybe_print_and_open_urls(
+            urls,
+            print_urls=print_urls,
+            open_urls=open_lacale,
+            batch=open_batch,
+            sleep_seconds=open_sleep,
+            dry_run=ns.dry_run,
+        )
         return 0
 
     if ns.cmd == "archives" and ns.archives_cmd == "take-budget-gib":
@@ -1028,7 +1041,6 @@ def main(argv: list[str] | None = None) -> int:
         budget_gib = int(ns.gib)
         if budget_gib <= 0:
             raise RuntimeError("Budget GiB doit être > 0.")
-        budget_bytes = budget_gib * (1024**3)
         status = str(ns.status or "").strip()
         q = str(ns.q or "").strip() or None
         cat = str(ns.cat or "").strip() or None
@@ -1039,74 +1051,25 @@ def main(argv: list[str] | None = None) -> int:
         print_urls = bool(getattr(ns, "print_lacale_download_urls", False))
         open_batch = int(getattr(ns, "open_batch", 10) or 10)
         open_sleep = int(getattr(ns, "open_sleep_seconds", 1) or 1)
-        opened_urls: list[str] = []
 
-        per_page = 200
-        page = 1
-        selected: list[dict] = []
-        total_bytes = 0
-        scanned = 0
-        while True:
-            resp = calewood.list_archives(
-                status=status,
-                q=q,
-                cat=cat,
-                subcat=subcat,
-                sort="size_bytes",
-                order="asc",
-                p=page,
-                per_page=per_page,
-                v1_only=0,
-            )
-            if not isinstance(resp, dict) or not resp.get("success"):
-                raise RuntimeError(f"Calewood archive list failed at page {page}: {resp}")
-            items = resp.get("data")
-            meta = resp.get("meta") if isinstance(resp.get("meta"), dict) else {}
-            has_more = bool(meta.get("has_more")) if isinstance(meta, dict) else False
-            if isinstance(items, list):
-                for it in items:
-                    if not isinstance(it, dict):
-                        continue
-                    scanned += 1
-                    try:
-                        sz = int(it.get("size_bytes") or 0)
-                    except Exception:  # noqa: BLE001
-                        sz = 0
-                    if sz <= 0:
-                        continue
-                    if total_bytes + sz > budget_bytes:
-                        continue
-                    selected.append(it)
-                    total_bytes += sz
-                    if max_items > 0 and len(selected) >= max_items:
-                        has_more = False
-                        break
-            if not has_more:
-                break
-            page += 1
+        items_all = _iter_archives(calewood, status=status, q=q, cat=cat, subcat=subcat, max_pages=0)
+        selected, total_bytes = _select_budget(items_all, budget_gib=budget_gib, max_items=max_items)
 
         rows: list[tuple[str, ...]] = []
         took = 0
         failed = 0
+        took_items: list[dict] = []
         for it in selected:
             aid = int(it.get("id") or 0)
             name = str(it.get("name") or "")
-            try:
-                sz = int(it.get("size_bytes") or 0)
-            except Exception:  # noqa: BLE001
-                sz = 0
+            sz = _size_bytes(it)
             action = "dry-run"
             if not ns.dry_run:
                 try:
-                    calewood.take_archive(str(aid))
-                    if do_complete:
-                        time.sleep(1)
-                        calewood.complete_archive(str(aid))
+                    _take_archive(calewood, aid, complete=do_complete)
                     action = "took" if not do_complete else "took+complete"
-                    lacale_hash = str(it.get("lacale_hash") or "").strip().lower()
-                    if (open_lacale or print_urls) and lacale_hash:
-                        opened_urls.append(f"https://la-cale.space/api/torrents/download/{lacale_hash}")
                     took += 1
+                    took_items.append(it)
                 except Exception as e:  # noqa: BLE001
                     action = f"failed: {e}"
                     failed += 1
@@ -1116,14 +1079,18 @@ def main(argv: list[str] | None = None) -> int:
 
         _print_table(("ID", "SIZE", "NAME", "ACTION"), rows)
         print(
-            f"status={status} scanned={scanned} selected={len(selected)} budget_gib={budget_gib} selected_gib={(total_bytes/(1024**3)):.2f} took={took} failed={failed}",
+            f"status={status} scanned={len(items_all)} selected={len(selected)} budget_gib={budget_gib} selected_gib={(total_bytes/(1024**3)):.2f} took={took} failed={failed}",
             file=sys.stderr,
         )
-        if opened_urls and print_urls:
-            _print_urls(opened_urls)
-        if open_lacale and opened_urls and not ns.dry_run:
-            opened = _open_urls(opened_urls, batch=open_batch, sleep_seconds=open_sleep)
-            print(f"opened={opened} urls={len(opened_urls)}", file=sys.stderr)
+        urls = _lacale_urls(took_items if not ns.dry_run else selected)
+        _maybe_print_and_open_urls(
+            urls,
+            print_urls=print_urls,
+            open_urls=open_lacale,
+            batch=open_batch,
+            sleep_seconds=open_sleep,
+            dry_run=ns.dry_run,
+        )
         return 0
 
     if ns.cmd == "prearchivage" and ns.pre_cmd == "take-budget-gib":
