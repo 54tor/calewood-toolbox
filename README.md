@@ -41,32 +41,6 @@ docker run --rm -it \
   sat0r/calewood-toolbox:latest --help
 ```
 
-## Annexe : installation
-
-### Docker (build local)
-
-```bash
-docker build -t calewood-toolbox .
-```
-
-Puis exécuter l'image locale buildée :
-
-```bash
-docker run --rm -it \
-  --env-file .env \
-  calewood-toolbox --help
-```
-
-### Python (local)
-
-```bash
-python -m venv .venv
-. .venv/bin/activate
-pip install -U pip
-pip install -e .
-calewood-toolbox --help
-```
-
 ## Configuration
 
 ### Calewood
@@ -175,28 +149,32 @@ Le `--help` est la référence (aide en étages). Les commandes principales :
 - `qbit get`
 - `qbit dl-queue`
 
-- `--migrate-sharewood-to-calewood` : migration Sharewood ↔ La‑Cale (move data + re-add skip_checking + tags/catégories).
-- `--migrate-from-prefix` / `--migrate-to-prefix` : mapping des chemins.
-
-### Fichiers / FS
-
-- `--fs-orphans ROOT` : compare FS vs qBittorrent (multi-instances possibles), sort les chemins orphelins.
-- `--fs-ignore PATH` / `--path-map FROM=TO` / `--managed-ignore-prefix PREFIX` : réglages de scan.
-
-## Exemples rapides
-
-- Aide :
-  - `calewood-toolbox --help`
-
-- File d’attente / backlog qBittorrent :
-  - `calewood-toolbox qbit dl-queue --qb-host box`
-
-- Archivage classique : éléments disponibles à prendre (`status=uploaded`) :
-  - `calewood-toolbox --calewood-archive-uploaded`
-
-- Prendre les `uploaded` (classique) et les ajouter à qBittorrent (nécessite `--qb-host`) :
-  - `calewood-toolbox --qb-host box --calewood-archive-take-uploaded-to-qbit --just-do-it --verbose`
-
 ## Licence
 
 GPL-3.0
+
+## Annexe : installation
+
+### Docker (build local)
+
+```bash
+docker build -t calewood-toolbox .
+```
+
+Puis exécuter l'image locale buildée :
+
+```bash
+docker run --rm -it \
+  --env-file .env \
+  calewood-toolbox --help
+```
+
+### Python (local)
+
+```bash
+python -m venv .venv
+. .venv/bin/activate
+pip install -U pip
+pip install -e .
+calewood-toolbox --help
+```
