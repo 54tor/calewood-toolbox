@@ -525,6 +525,10 @@ class CalewoodClient:
         except Exception:  # noqa: BLE001
             return payload.strip()
 
+    def download_archive_torrent_file(self, archive_id: int) -> bytes:
+        """GET /api/archive/torrent-file/{id} (binary .torrent)."""
+        return self._request_bytes(f"api/archive/torrent-file/{int(archive_id)}")
+
     # ---- Arbitre API (arbitrage) ----
 
     def list_arbitre(

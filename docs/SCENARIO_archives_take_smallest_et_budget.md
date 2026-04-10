@@ -124,3 +124,18 @@ calewood-toolbox --just-do-it take budget-gib 150 --open-lacale-download
 ## Note
 
 Ce scénario n’ajoute pas automatiquement dans qBittorrent : il **affiche / ouvre** uniquement les liens La‑Cale.
+
+## Télécharger le .torrent Sharewood vers un client torrent
+
+La commande `take budget-gib` peut aussi ajouter le **.torrent Sharewood** dans un client qBittorrent :
+
+```bash
+calewood-toolbox --just-do-it take budget-gib 150 \
+  --qb-host sd-183106 \
+  --add-sharewood-to-qbit
+```
+
+La catégorie qBittorrent utilisée est :
+
+- `calewood-upload` par défaut
+- ou `category_upload` si défini dans `QBIT_INSTANCES_JSON`

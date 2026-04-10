@@ -55,6 +55,20 @@ def _qbit_from_instance(name: str):
         return QbitClient(base_url=base_url, username=username, password=password)
     raise RuntimeError(f"Instance qBittorrent inconnue: {name!r}")
 
+
+def _qbit_from_instance_with_upload_category(name: str):
+    qb = _qbit_from_instance(name)
+    n = (name or "").strip().lower()
+    for inst in getattr(config, "QBIT_INSTANCES", []):
+        if not isinstance(inst, dict):
+            continue
+        if str(inst.get("name", "")).strip().lower() != n:
+            continue
+        cat = str(inst.get("category_upload") or "").strip()
+        return qb, (cat or "calewood-upload")
+    return qb, "calewood-upload"
+
+
 def _calewood_client() -> CalewoodClient:
     token = _env("CALEWOOD_TOKEN", config.CALEWOOD_TOKEN).strip()
     if not token:
@@ -165,6 +179,12 @@ def main(argv: list[str] | None = None) -> int:
         default=1,
         metavar="S",
         help="Pause (secondes) entre chaque batch d'ouvertures (défaut: 1).",
+    )
+    tmix.add_argument("--qb-host", default="", help="Alias qBittorrent (optionnel).")
+    tmix.add_argument(
+        "--add-sharewood-to-qbit",
+        action="store_true",
+        help="Après un take réussi, télécharge le .torrent Sharewood et l'ajoute dans qBittorrent (catégorie par instance `category_upload`, défaut: calewood-upload).",
     )
 
     # qbit
@@ -835,6 +855,14 @@ def main(argv: list[str] | None = None) -> int:
         open_batch = int(getattr(ns, "open_batch", 10) or 10)
         open_sleep = int(getattr(ns, "open_sleep_seconds", 1) or 1)
         opened_urls: list[str] = []
+        add_sw = bool(getattr(ns, "add_sharewood_to_qbit", False))
+        qb_host = str(getattr(ns, "qb_host", "") or "").strip()
+        qb = None
+        qb_cat = "calewood-upload"
+        if add_sw:
+            if not qb_host:
+                raise RuntimeError("--qb-host est requis avec --add-sharewood-to-qbit.")
+            qb, qb_cat = _qbit_from_instance_with_upload_category(qb_host)
 
         per_page = 200
         scanned_classic = 0
@@ -919,6 +947,15 @@ def main(argv: list[str] | None = None) -> int:
                     lacale_hash = str(it.get("lacale_hash") or "").strip().lower()
                     if open_lacale and lacale_hash:
                         opened_urls.append(f"https://la-cale.space/api/torrents/download/{lacale_hash}")
+                    if add_sw:
+                        torrent_bytes = calewood.download_archive_torrent_file(int(tid))
+                        qb.add_torrent_file(  # type: ignore[union-attr]
+                            torrent_bytes,
+                            category=qb_cat,
+                            start=True,
+                            skip_checking=True,
+                        )
+                        action += "+qbit"
                     took += 1
                 except Exception as e:  # noqa: BLE001
                     action = f"failed: {e}"
