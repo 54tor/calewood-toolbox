@@ -148,6 +148,12 @@ calewood-toolbox uploads take-selected \
 - `qbit dl-queue --qb-host NAME` : stats file de téléchargement.
 - `torrents q Q` : recherche via `GET /api/torrent/list?q=...` (nom ou `sharewood_hash`).
 
+### Scénarios (docs)
+
+- `docs/SCENARIO_prendre_uploads_selected.md`
+- `docs/SCENARIO_archives_take_smallest_et_budget.md`
+- `docs/SCENARIO_prearchivage_take_budget.md`
+
 ### Dépréciations
 
 `DEPRECATED.md` liste les tâches/options qui ont existé à un moment (mémoire + historique), sans forcément être encore exposées.
