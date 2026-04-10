@@ -154,6 +154,13 @@ def main(argv: list[str] | None = None) -> int:
     qqueue = qsub.add_parser("dl-queue", help="Statistiques de file de téléchargement.")
     qqueue.add_argument("--qb-host", required=True, help="Alias d'instance qBittorrent (name).")
 
+    # torrents
+    torrents = sub.add_parser("torrents", help="Recherche torrents (api/torrent).")
+    tsub2 = torrents.add_subparsers(dest="t_cmd", required=True)
+    tq = tsub2.add_parser("q", help="Recherche via `GET /api/torrent/list?q=...`.")
+    tq.add_argument("q", metavar="Q", help="Recherche (nom ou sharewood_hash).")
+    tq.add_argument("--limit", type=int, default=50, metavar="N", help="Nombre maximum de résultats affichés.")
+
     # archives
     archives = sub.add_parser("archives", help="Archivage classique (api/archive).")
     asub = archives.add_subparsers(dest="archives_cmd", required=True)
@@ -344,6 +351,51 @@ def main(argv: list[str] | None = None) -> int:
                     pass
         left_gib = left_bytes / (1024**3)
         print(f"instance={str(ns.qb_host).lower()} queuedDL={queued} left_gib={left_gib:.2f}")
+        return 0
+
+    if ns.cmd == "torrents" and ns.t_cmd == "q":
+        calewood = _calewood_client()
+        q = str(ns.q or "").strip()
+        limit = int(ns.limit or 0)
+        if limit <= 0:
+            limit = 50
+        per_page = 200
+        page = 1
+        shown = 0
+        rows: list[tuple[str, str, str, str, str, str]] = []
+        while True:
+            resp = calewood.list_torrents(q=q, p=page, per_page=per_page)
+            if not isinstance(resp, dict) or not resp.get("success"):
+                raise RuntimeError(f"Calewood torrent list failed at page {page}: {resp}")
+            items = resp.get("data")
+            meta = resp.get("meta") if isinstance(resp.get("meta"), dict) else {}
+            has_more = bool(meta.get("has_more")) if isinstance(meta, dict) else False
+            if isinstance(items, list):
+                for it in items:
+                    if not isinstance(it, dict):
+                        continue
+                    if shown >= limit:
+                        has_more = False
+                        break
+                    shown += 1
+                    rows.append(
+                        (
+                            str(it.get("id") or ""),
+                            str(it.get("status") or ""),
+                            str(it.get("category") or ""),
+                            str(it.get("subcategory") or ""),
+                            str(it.get("sharewood_hash") or ""),
+                            str(it.get("name") or "")[:100],
+                        )
+                    )
+                    if ns.json:
+                        print(json.dumps(it, ensure_ascii=False))
+            if not has_more:
+                break
+            page += 1
+        if not ns.json:
+            _print_table(("ID", "STATUS", "CAT", "SUBCAT", "SHAREWOOD_HASH", "NAME"), rows)
+        print(f"q={q} shown={shown}", file=sys.stderr)
         return 0
 
     if ns.cmd == "archives" and ns.archives_cmd == "verify-my":
