@@ -99,6 +99,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Quand applicable, affiche en JSONL (1 objet JSON par ligne) au lieu d'un tableau lisible.",
     )
     parser.add_argument(
+        "--pretty-json",
+        action="store_true",
+        help="Avec `--json`, affiche un JSON indenté (plus lisible) au lieu du JSONL.",
+    )
+    parser.add_argument(
         "--seedbox-passphrase",
         type=str,
         default="",
@@ -389,7 +394,10 @@ def main(argv: list[str] | None = None) -> int:
                         )
                     )
                     if ns.json:
-                        print(json.dumps(it, ensure_ascii=False))
+                        if ns.pretty_json:
+                            print(json.dumps(it, ensure_ascii=False, indent=2))
+                        else:
+                            print(json.dumps(it, ensure_ascii=False))
             if not has_more:
                 break
             page += 1
