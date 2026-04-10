@@ -108,12 +108,12 @@ def main(argv: list[str] | None = None) -> int:
 
     sub = parser.add_subparsers(dest="cmd", required=True)
 
-    # take (mix)
-    take = sub.add_parser("take", help="Prises (mix archivage classique + pré-archivage).")
+    # take (classic)
+    take = sub.add_parser("take", help="Prises (archivage classique).")
     tsub = take.add_subparsers(dest="take_cmd", required=True)
     tmix = tsub.add_parser(
         "budget-gib",
-        help="Prend jusqu'à un budget (GiB) en mélangeant archivage classique + pré-archivage, triés par taille croissante.",
+        help="Prend jusqu'à un budget (GiB) via l'archivage classique, triés par taille croissante.",
     )
     tmix.add_argument("gib", type=int, metavar="GiB", help="Budget total en GiB (arrondi inférieur).")
     tmix.add_argument(
@@ -125,28 +125,11 @@ def main(argv: list[str] | None = None) -> int:
     tmix.add_argument("--cat", default="", help="Filtre `cat` côté API.")
     tmix.add_argument("--subcat", default="", help="Filtre `subcat` côté API.")
     tmix.add_argument(
-        "--seeders",
-        type=int,
-        default=0,
-        metavar="N",
-        help="Filtre seeders>=N côté pré-archivage (0 désactive).",
-    )
-    tmix.add_argument(
         "--max-items",
         type=int,
         default=0,
         metavar="N",
         help="Nombre maximum d'items à prendre (0 = illimité).",
-    )
-    tmix.add_argument(
-        "--classic-only",
-        action="store_true",
-        help="Ne prend que via l'archivage classique (ignore pré-archivage).",
-    )
-    tmix.add_argument(
-        "--prearchivage-only",
-        action="store_true",
-        help="Ne prend que via le pré-archivage (ignore archivage classique).",
     )
     tmix.add_argument(
         "--complete-classic",
@@ -159,13 +142,6 @@ def main(argv: list[str] | None = None) -> int:
         default=0,
         metavar="N",
         help="Limite le nombre de pages scannées côté archivage classique (0 = toutes).",
-    )
-    tmix.add_argument(
-        "--max-pages-prearchivage",
-        type=int,
-        default=0,
-        metavar="N",
-        help="Limite le nombre de pages scannées côté pré-archivage (0 = toutes).",
     )
 
     # qbit
@@ -685,108 +661,57 @@ def main(argv: list[str] | None = None) -> int:
         q = str(ns.q or "").strip() or None
         cat = str(ns.cat or "").strip() or None
         subcat = str(ns.subcat or "").strip() or None
-        seeders = int(ns.seeders or 0)
         max_items = int(ns.max_items or 0)
-        classic_only = bool(ns.classic_only)
-        pre_only = bool(ns.prearchivage_only)
-        if classic_only and pre_only:
-            raise RuntimeError("--classic-only et --prearchivage-only sont incompatibles.")
-
         max_pages_classic = int(ns.max_pages_classic or 0)
-        max_pages_pre = int(ns.max_pages_prearchivage or 0)
         do_complete_classic = bool(ns.complete_classic)
 
         per_page = 200
         scanned_classic = 0
-        scanned_pre = 0
 
         candidates: list[dict] = []
 
-        if not pre_only:
-            page = 1
-            while True:
-                resp = calewood.list_archives(
-                    status=classic_status,
-                    q=q,
-                    cat=cat,
-                    subcat=subcat,
-                    sort="size_bytes",
-                    order="asc",
-                    p=page,
-                    per_page=per_page,
-                    v1_only=0,
-                )
-                if not isinstance(resp, dict) or not resp.get("success"):
-                    raise RuntimeError(f"Calewood archive list failed at page {page}: {resp}")
-                items = resp.get("data")
-                meta = resp.get("meta") if isinstance(resp.get("meta"), dict) else {}
-                has_more = bool(meta.get("has_more")) if isinstance(meta, dict) else False
-                if isinstance(items, list):
-                    for it in items:
-                        if not isinstance(it, dict):
-                            continue
-                        scanned_classic += 1
-                        try:
-                            sz = int(it.get("size_bytes") or 0)
-                        except Exception:  # noqa: BLE001
-                            sz = 0
-                        if sz <= 0:
-                            continue
-                        candidates.append(
-                            {
-                                "source": "classic",
-                                "id": int(it.get("id") or 0),
-                                "size_bytes": sz,
-                                "name": str(it.get("name") or ""),
-                            }
-                        )
-                if not has_more:
-                    break
-                page += 1
-                if max_pages_classic > 0 and page > max_pages_classic:
-                    break
-
-        if not classic_only:
-            page = 1
-            while True:
-                resp = calewood.list_pre_archivage(
-                    status=None,  # sans filtre => selected disponibles à prendre
-                    q=q,
-                    cat=cat,
-                    subcat=subcat,
-                    seeders=seeders if seeders > 0 else None,
-                    p=page,
-                    per_page=per_page,
-                )
-                if not isinstance(resp, dict) or not resp.get("success"):
-                    raise RuntimeError(f"Calewood pre-archivage list failed at page {page}: {resp}")
-                items = resp.get("data")
-                meta = resp.get("meta") if isinstance(resp.get("meta"), dict) else {}
-                has_more = bool(meta.get("has_more")) if isinstance(meta, dict) else False
-                if isinstance(items, list):
-                    for it in items:
-                        if not isinstance(it, dict):
-                            continue
-                        scanned_pre += 1
-                        try:
-                            sz = int(it.get("size_bytes") or 0)
-                        except Exception:  # noqa: BLE001
-                            sz = 0
-                        if sz <= 0:
-                            continue
-                        candidates.append(
-                            {
-                                "source": "prearchivage",
-                                "id": int(it.get("id") or 0),
-                                "size_bytes": sz,
-                                "name": str(it.get("name") or ""),
-                            }
-                        )
-                if not has_more:
-                    break
-                page += 1
-                if max_pages_pre > 0 and page > max_pages_pre:
-                    break
+        page = 1
+        while True:
+            resp = calewood.list_archives(
+                status=classic_status,
+                q=q,
+                cat=cat,
+                subcat=subcat,
+                sort="size_bytes",
+                order="asc",
+                p=page,
+                per_page=per_page,
+                v1_only=0,
+            )
+            if not isinstance(resp, dict) or not resp.get("success"):
+                raise RuntimeError(f"Calewood archive list failed at page {page}: {resp}")
+            items = resp.get("data")
+            meta = resp.get("meta") if isinstance(resp.get("meta"), dict) else {}
+            has_more = bool(meta.get("has_more")) if isinstance(meta, dict) else False
+            if isinstance(items, list):
+                for it in items:
+                    if not isinstance(it, dict):
+                        continue
+                    scanned_classic += 1
+                    try:
+                        sz = int(it.get("size_bytes") or 0)
+                    except Exception:  # noqa: BLE001
+                        sz = 0
+                    if sz <= 0:
+                        continue
+                    candidates.append(
+                        {
+                            "source": "classic",
+                            "id": int(it.get("id") or 0),
+                            "size_bytes": sz,
+                            "name": str(it.get("name") or ""),
+                        }
+                    )
+            if not has_more:
+                break
+            page += 1
+            if max_pages_classic > 0 and page > max_pages_classic:
+                break
 
         candidates.sort(key=lambda it: int(it.get("size_bytes") or 0))
 
@@ -812,16 +737,12 @@ def main(argv: list[str] | None = None) -> int:
             action = "dry-run"
             if not ns.dry_run:
                 try:
-                    if src == "classic":
-                        calewood.take_archive(str(tid))
-                        if do_complete_classic:
-                            time.sleep(1)
-                            calewood.complete_archive(str(tid))
-                            action = "took+complete"
-                        else:
-                            action = "took"
+                    calewood.take_archive(str(tid))
+                    if do_complete_classic:
+                        time.sleep(1)
+                        calewood.complete_archive(str(tid))
+                        action = "took+complete"
                     else:
-                        calewood.take_pre_archivage(tid)
                         action = "took"
                     took += 1
                 except Exception as e:  # noqa: BLE001
@@ -831,7 +752,7 @@ def main(argv: list[str] | None = None) -> int:
 
         _print_table(("SRC", "ID", "SIZE", "NAME", "ACTION"), rows)
         print(
-            f"scanned_classic={scanned_classic} scanned_prearchivage={scanned_pre} candidates={len(candidates)} selected={len(selected)} budget_gib={budget_gib} selected_gib={(total_bytes/(1024**3)):.2f} took={took} failed={failed}",
+            f"scanned_classic={scanned_classic} candidates={len(candidates)} selected={len(selected)} budget_gib={budget_gib} selected_gib={(total_bytes/(1024**3)):.2f} took={took} failed={failed}",
             file=sys.stderr,
         )
         return 0
