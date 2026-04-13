@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import re
 import subprocess
@@ -359,6 +360,10 @@ def main(argv: list[str] | None = None) -> int:
     qget.add_argument("--qb-host", required=True, help="Alias d'instance qBittorrent (name).")
     qget.add_argument("hash", metavar="HASH", help="Hash qBittorrent (infohash).")
 
+    qgetfile = qsub.add_parser("torrent-file", help="Récupère le .torrent d'un hash et l'affiche en base64.")
+    qgetfile.add_argument("--qb-host", required=True, help="Alias d'instance qBittorrent (name).")
+    qgetfile.add_argument("hash", metavar="HASH", help="Hash qBittorrent (infohash).")
+
     qqueue = qsub.add_parser("dl-queue", help="Statistiques de file de téléchargement.")
     qqueue.add_argument("--qb-host", required=True, help="Alias d'instance qBittorrent (name).")
     qlist = qsub.add_parser("list", help="Liste tous les torrents d'une instance qBittorrent.")
@@ -451,6 +456,24 @@ def main(argv: list[str] | None = None) -> int:
         default=5,
         metavar="S",
         help="Pause entre les lots d'ajout (défaut: 5).",
+    )
+    qkeep = qsub.add_parser(
+        "keep-active-tracker",
+        help="Ne laisse actifs que les torrents dont un tracker commence par un préfixe donné.",
+    )
+    qkeep.add_argument("--qb-host", required=True, help="Alias d'instance qBittorrent (name).")
+    qkeep.add_argument(
+        "--tracker-prefix",
+        required=True,
+        metavar="PREFIX",
+        help="Préfixe de tracker à conserver actif (ex: https://tracker.la-cale.space).",
+    )
+    qkeep.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        metavar="N",
+        help="Limite le nombre de torrents inspectés (0 = illimité).",
     )
 
     # torrents
@@ -683,6 +706,14 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(t, ensure_ascii=False, indent=2))
         return 0
 
+    if ns.cmd == "qbit" and ns.qbit_cmd == "torrent-file":
+        qb = _qbit_from_instance(ns.qb_host)
+        torrent_bytes = qb.export_torrent_file(str(ns.hash))
+        if not torrent_bytes:
+            raise RuntimeError("Torrent vide ou hash invalide.")
+        print(base64.b64encode(torrent_bytes).decode("ascii"))
+        return 0
+
     if ns.cmd == "qbit" and ns.qbit_cmd == "dl-queue":
         qb = _qbit_from_instance(ns.qb_host)
         torrents = qb.list_torrents(category=None)
@@ -842,6 +873,46 @@ def main(argv: list[str] | None = None) -> int:
         _print_table(("HASH", "CAT", "NAME", "ACTION"), missing_rows)
         print(
             f"src={str(ns.src).lower()} dsts={','.join(dst_names)} scanned={scanned} copied={copied} category={dst_category or 'instance'} start={start} skip_checking={skip_checking} batch_size={batch_size} batch_sleep={batch_sleep}",
+            file=sys.stderr,
+        )
+        return 0
+
+    if ns.cmd == "qbit" and ns.qbit_cmd == "keep-active-tracker":
+        qb = _qbit_from_instance(ns.qb_host)
+        prefix = str(ns.tracker_prefix or "").strip().lower()
+        if not prefix:
+            raise RuntimeError("--tracker-prefix est requis.")
+        limit = int(ns.limit or 0)
+        torrents = qb.list_torrents(category=None)
+        inspected = 0
+        kept: list[str] = []
+        paused: list[str] = []
+        for t in torrents:
+            h = str(t.get("hash") or "").strip()
+            if not h:
+                continue
+            inspected += 1
+            if limit > 0 and inspected > limit:
+                break
+            trackers = qb.list_trackers(h)
+            matched = False
+            for tr in trackers:
+                url = str(tr.get("url") or "").strip().lower()
+                if url.startswith(prefix):
+                    matched = True
+                    break
+            if matched:
+                kept.append(h)
+            else:
+                paused.append(h)
+        if not ns.dry_run:
+            if kept:
+                qb.resume_torrents(kept)
+            if paused:
+                qb.pause_torrents(paused)
+        _print_table(("ACTION", "COUNT"), [("keep_active", str(len(kept))), ("pause", str(len(paused)))])
+        print(
+            f"instance={str(ns.qb_host).lower()} prefix={prefix} inspected={inspected} kept={len(kept)} paused={len(paused)} dry_run={ns.dry_run}",
             file=sys.stderr,
         )
         return 0

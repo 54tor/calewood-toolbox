@@ -57,7 +57,10 @@ _QBIT_INSTANCES_JSON = os.environ.get("QBIT_INSTANCES_JSON", "").strip()
 if _QBIT_INSTANCES_JSON:
     import json
 
-    QBIT_INSTANCES = json.loads(_QBIT_INSTANCES_JSON)
+    try:
+        QBIT_INSTANCES = json.loads(_QBIT_INSTANCES_JSON)
+    except Exception:  # noqa: BLE001
+        QBIT_INSTANCES = []
 else:
     QBIT_INSTANCES: list[dict[str, str]] = []
 

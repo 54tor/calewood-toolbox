@@ -39,6 +39,21 @@ class QbitClient:
             torrents = client.torrents_info(category=category)
         return [dict(t) for t in torrents]
 
+    def resolve_torrent_hash(self, torrent_hash: str) -> str:
+        needle = str(torrent_hash or "").strip().lower()
+        if not needle:
+            return ""
+        if len(needle) >= 40:
+            return needle
+        matches: list[str] = []
+        for t in self.list_torrents(category=None):
+            h = str(t.get("hash") or "").strip().lower()
+            if h.startswith(needle):
+                matches.append(h)
+        if len(matches) == 1:
+            return matches[0]
+        return needle
+
     def list_trackers(self, torrent_hash: str) -> list[dict]:
         client = self._client()
         trackers = client.torrents_trackers(torrent_hash=torrent_hash)
@@ -76,7 +91,7 @@ class QbitClient:
 
     def export_torrent_file(self, torrent_hash: str) -> bytes:
         client = self._client()
-        h = str(torrent_hash or "").strip()
+        h = self.resolve_torrent_hash(torrent_hash)
         if not h:
             return b""
         return bytes(client.torrents_export(torrent_hash=h))
