@@ -1198,6 +1198,7 @@ def main(argv: list[str] | None = None) -> int:
         scanned_pre = 0
         total_done_pre = 0
         total_done_pre_bytes = 0
+        seen_ids: set[str] = set()
 
         # 1) Uploads "classiques"
         while True:
@@ -1217,6 +1218,11 @@ def main(argv: list[str] | None = None) -> int:
                     name = str(it.get("name") or "")
                     if not match_name(name):
                         continue
+                    it_id = str(it.get("id") or "").strip()
+                    if it_id and it_id in seen_ids:
+                        continue
+                    if it_id:
+                        seen_ids.add(it_id)
                     total_done += 1
                     try:
                         total_done_bytes += int(it.get("size_bytes") or 0)
@@ -1253,6 +1259,11 @@ def main(argv: list[str] | None = None) -> int:
                         name = str(it.get("name") or "")
                         if not match_name(name):
                             continue
+                        it_id = str(it.get("id") or "").strip()
+                        if it_id and it_id in seen_ids:
+                            continue
+                        if it_id:
+                            seen_ids.add(it_id)
                         total_done_pre += 1
                         try:
                             total_done_pre_bytes += int(it.get("size_bytes") or 0)
