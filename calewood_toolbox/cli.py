@@ -946,37 +946,62 @@ def main(argv: list[str] | None = None) -> int:
         prefix = str(ns.tracker_prefix or "").strip().lower()
         category = str(ns.category or "").strip() or "cross-seed"
         limit = int(ns.limit or 0)
-        torrents = qb.list_torrents(category=category)
-        rows: list[tuple[str, str, str, str, str]] = []
+        torrents = qb.list_torrents(category=None)
+        trackers_by_hash: dict[str, list[dict]] = {}
+        name_index: dict[str, list[dict]] = {}
+        for t in torrents:
+            h = str(t.get("hash") or "").strip().lower()
+            if not h:
+                continue
+            trackers_by_hash[h] = qb.list_trackers(h)
+            name = str(t.get("name") or "").strip().lower()
+            if name:
+                name_index.setdefault(name, []).append(t)
+
+        rows: list[tuple[str, str, str, str, str, str, str]] = []
         matched = 0
         scanned = 0
         for t in torrents:
-            h = str(t.get("hash") or "").strip()
+            h = str(t.get("hash") or "").strip().lower()
             if not h:
                 continue
-            scanned += 1
-            trackers = qb.list_trackers(h)
-            has_match = False
-            for tr in trackers:
-                url = str(tr.get("url") or "").strip().lower()
-                if url.startswith(prefix):
-                    has_match = True
-                    break
-            if not has_match:
+            if str(t.get("category") or "").strip() != category:
                 continue
-            matched += 1
-            rows.append(
-                (
-                    h[:12],
-                    str(t.get("state") or ""),
-                    str(t.get("category") or ""),
-                    _fmt_gib(int(t.get("size") or 0)),
-                    str(t.get("name") or "")[:90],
+            scanned += 1
+            trackers = trackers_by_hash.get(h, [])
+            has_lacale = any(str(tr.get("url") or "").strip().lower().startswith(prefix) for tr in trackers)
+            if not has_lacale:
+                continue
+            name = str(t.get("name") or "").strip().lower()
+            twins = [tw for tw in name_index.get(name, []) if str(tw.get("hash") or "").strip().lower() != h]
+            for twin in twins:
+                twin_hash = str(twin.get("hash") or "").strip().lower()
+                twin_trackers = trackers_by_hash.get(twin_hash, [])
+                twin_tracker = ""
+                for tr in twin_trackers:
+                    url = str(tr.get("url") or "").strip()
+                    if not url.lower().startswith(prefix):
+                        twin_tracker = url
+                        break
+                if not twin_tracker and twin_trackers:
+                    twin_tracker = str(twin_trackers[0].get("url") or "").strip()
+                rows.append(
+                    (
+                        h[:12],
+                        str(t.get("name") or "")[:60],
+                        twin_hash[:12],
+                        str(twin.get("name") or "")[:60],
+                        str(twin.get("category") or ""),
+                        _fmt_gib(int(twin.get("size") or 0)),
+                        twin_tracker[:60],
+                    )
                 )
-            )
+                matched += 1
+                if limit > 0 and matched >= limit:
+                    break
             if limit > 0 and matched >= limit:
                 break
-        _print_table(("HASH", "STATE", "CAT", "SIZE", "NAME"), rows)
+        _print_table(("SRC_HASH", "SRC_NAME", "TWIN_HASH", "TWIN_NAME", "CAT", "SIZE", "TRACKER"), rows)
         print(
             f"instance={str(ns.qb_host).lower()} category={category} prefix={prefix} scanned={scanned} matched={matched}",
             file=sys.stderr,
