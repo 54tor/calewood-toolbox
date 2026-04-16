@@ -475,6 +475,30 @@ def main(argv: list[str] | None = None) -> int:
         metavar="N",
         help="Limite le nombre de torrents inspectés (0 = illimité).",
     )
+    qtwins = qsub.add_parser(
+        "twins",
+        help="Liste les torrents d'une catégorie qui ont un tracker commençant par un préfixe donné.",
+    )
+    qtwins.add_argument("--qb-host", required=True, help="Alias d'instance qBittorrent (name).")
+    qtwins.add_argument(
+        "--tracker-prefix",
+        default="https://tracker.la-cale.space",
+        metavar="PREFIX",
+        help="Préfixe de tracker à chercher (défaut: https://tracker.la-cale.space).",
+    )
+    qtwins.add_argument(
+        "--category",
+        default="cross-seed",
+        metavar="CAT",
+        help="Catégorie qBittorrent à filtrer (défaut: cross-seed).",
+    )
+    qtwins.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        metavar="N",
+        help="Limite le nombre de lignes affichées (0 = illimité).",
+    )
 
     # torrents
     torrents = sub.add_parser("torrents", help="Recherche torrents (api/torrent).")
@@ -913,6 +937,48 @@ def main(argv: list[str] | None = None) -> int:
         _print_table(("ACTION", "COUNT"), [("keep_active", str(len(kept))), ("pause", str(len(paused)))])
         print(
             f"instance={str(ns.qb_host).lower()} prefix={prefix} inspected={inspected} kept={len(kept)} paused={len(paused)} dry_run={ns.dry_run}",
+            file=sys.stderr,
+        )
+        return 0
+
+    if ns.cmd == "qbit" and ns.qbit_cmd == "twins":
+        qb = _qbit_from_instance(ns.qb_host)
+        prefix = str(ns.tracker_prefix or "").strip().lower()
+        category = str(ns.category or "").strip() or "cross-seed"
+        limit = int(ns.limit or 0)
+        torrents = qb.list_torrents(category=category)
+        rows: list[tuple[str, str, str, str, str]] = []
+        matched = 0
+        scanned = 0
+        for t in torrents:
+            h = str(t.get("hash") or "").strip()
+            if not h:
+                continue
+            scanned += 1
+            trackers = qb.list_trackers(h)
+            has_match = False
+            for tr in trackers:
+                url = str(tr.get("url") or "").strip().lower()
+                if url.startswith(prefix):
+                    has_match = True
+                    break
+            if not has_match:
+                continue
+            matched += 1
+            rows.append(
+                (
+                    h[:12],
+                    str(t.get("state") or ""),
+                    str(t.get("category") or ""),
+                    _fmt_gib(int(t.get("size") or 0)),
+                    str(t.get("name") or "")[:90],
+                )
+            )
+            if limit > 0 and matched >= limit:
+                break
+        _print_table(("HASH", "STATE", "CAT", "SIZE", "NAME"), rows)
+        print(
+            f"instance={str(ns.qb_host).lower()} category={category} prefix={prefix} scanned={scanned} matched={matched}",
             file=sys.stderr,
         )
         return 0

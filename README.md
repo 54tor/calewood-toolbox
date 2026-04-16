@@ -130,6 +130,8 @@ calewood-toolbox uploads take-selected \
 - `qbit mirror --src SRC --dst DST [--dst DST2 ...]` : copie les torrents présents dans la source mais absents dans une ou plusieurs destinations.
   - défauts prudents : `--limit 10`, `--batch-size 1`, `--batch-sleep-seconds 5`
   - `--batch-size N` / `--batch-sleep-seconds S` : lisse les ajouts par lots pour éviter de saturer la destination
+- `qbit twins --qb-host NAME` : liste les torrents `cross-seed` ayant un tracker qui commence par `https://tracker.la-cale.space`.
+- `qbit keep-active-tracker --qb-host NAME --tracker-prefix PREFIX` : ne laisse actifs que les torrents dont un tracker commence par le préfixe donné.
 - `torrents q Q` : recherche via `GET /api/torrent/list?q=...` (nom ou `sharewood_hash`).
 
 ### Scénarios (docs)
