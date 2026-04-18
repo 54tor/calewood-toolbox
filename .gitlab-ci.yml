@@ -22,7 +22,7 @@ variables:
     - docker run --privileged --rm tonistiigi/binfmt --install all
     - export BUILDER_NAME="gitlab-builder-$CI_JOB_ID"
     - docker buildx create --use --name "$BUILDER_NAME"
-    #- echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USER" --password-stdin
   after_script:
     - docker buildx rm "$BUILDER_NAME" || true
