@@ -839,6 +839,11 @@ def main(argv: list[str] | None = None) -> int:
         pending_batches: list[tuple[str, bytes, str, str, str]] = []
         for t in src_torrents:
             scanned += 1
+            if scanned == 1 or scanned % 250 == 0:
+                print(
+                    f"mirror progress: scanned={scanned}/{len(src_torrents)} copied={copied} pending={len(pending_batches)}",
+                    file=sys.stderr,
+                )
             h = str(t.get("hash", "")).strip().lower()
             if not h:
                 continue
@@ -881,9 +886,13 @@ def main(argv: list[str] | None = None) -> int:
                     torrent_bytes,
                     category=category,
                     start=start,
-                    skip_checking=skip_checking,
-                )
+                skip_checking=skip_checking,
+            )
 
+        print(
+            f"mirror progress: scanned={scanned}/{len(src_torrents)} copied={copied} pending=0",
+            file=sys.stderr,
+        )
         _print_table(("HASH", "CAT", "NAME", "ACTION"), missing_rows)
         print(
             f"src={str(ns.src).lower()} dsts={','.join(dst_names)} scanned={scanned} copied={copied} category={dst_category or 'instance'} start={start} skip_checking={skip_checking} batch_size={batch_size} batch_sleep={batch_sleep}",
