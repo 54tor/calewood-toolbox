@@ -415,11 +415,6 @@ def main(argv: list[str] | None = None) -> int:
         help="Catégorie à forcer à l'ajout dans les destinations. Vide = reprend la catégorie source.",
     )
     qmirror.add_argument(
-        "--start",
-        action="store_true",
-        help="Démarre les torrents ajoutés dans la destination (défaut: paused).",
-    )
-    qmirror.add_argument(
         "--skip-checking",
         action="store_true",
         default=True,
@@ -818,7 +813,6 @@ def main(argv: list[str] | None = None) -> int:
         dst_clients = {name: _qbit_from_instance(name) for name in dst_names}
         src_category = str(ns.only_category or "").strip() or None
         dst_category = str(ns.category or "").strip()
-        start = bool(ns.start)
         skip_checking = bool(ns.skip_checking)
         batch_size = max(1, int(ns.batch_size or 1))
         batch_sleep = max(0, int(ns.batch_sleep_seconds or 5))
@@ -880,7 +874,7 @@ def main(argv: list[str] | None = None) -> int:
                         torrent_bytes,
                         category=category,
                         tags=source_tags,
-                        start=start,
+                        start=False,
                         save_path=save_path or None,
                         skip_checking=skip_checking,
                     )
@@ -894,7 +888,7 @@ def main(argv: list[str] | None = None) -> int:
                     torrent_bytes,
                     category=category,
                     tags=source_tags,
-                    start=start,
+                    start=False,
                     save_path=save_path or None,
                     skip_checking=skip_checking,
                 )
@@ -905,7 +899,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         _print_table(("HASH", "CAT", "NAME", "ACTION"), missing_rows)
         print(
-            f"src={str(ns.src).lower()} dsts={','.join(dst_names)} scanned={scanned} copied={copied} category={dst_category or 'instance'} start={start} skip_checking={skip_checking} batch_size={batch_size} batch_sleep={batch_sleep}",
+            f"src={str(ns.src).lower()} dsts={','.join(dst_names)} scanned={scanned} copied={copied} category={dst_category or 'instance'} skip_checking={skip_checking} batch_size={batch_size} batch_sleep={batch_sleep}",
             file=sys.stderr,
         )
         return 0
