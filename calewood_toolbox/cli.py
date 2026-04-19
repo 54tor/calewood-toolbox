@@ -818,6 +818,7 @@ def main(argv: list[str] | None = None) -> int:
         batch_sleep = max(0, int(ns.batch_sleep_seconds or 5))
 
         src_torrents = src.list_torrents(category=src_category)
+        source_category_paths: dict[str, str] = {}
         dst_hashes_by_name = {
             name: {
                 str(t.get("hash", "")).strip().lower()
@@ -826,6 +827,13 @@ def main(argv: list[str] | None = None) -> int:
             }
             for name, client in dst_clients.items()
         }
+        for t in src_torrents:
+            src_cat = str(t.get("category") or "").strip()
+            if src_cat and src_cat not in source_category_paths:
+                try:
+                    source_category_paths[src_cat] = src.category_save_path(src_cat)
+                except Exception:  # noqa: BLE001
+                    source_category_paths[src_cat] = ""
 
         copied = 0
         scanned = 0
@@ -846,6 +854,7 @@ def main(argv: list[str] | None = None) -> int:
             name = str(t.get("name") or "")
             cat = str(t.get("category") or "")
             save_path = str(t.get("save_path") or "").strip()
+            category_path = source_category_paths.get(cat, "") or ""
             torrent_bytes = src.export_torrent_file(h)
             if not torrent_bytes:
                 continue
@@ -861,7 +870,7 @@ def main(argv: list[str] | None = None) -> int:
                 if ns.dry_run:
                     actions.append(dst_name)
                 else:
-                    dst_clients[dst_name].ensure_category(category, save_path or None)
+                    dst_clients[dst_name].ensure_category(category, category_path or None)
                     pending_batches.append((dst_name, torrent_bytes, category, h, name[:60], source_tags, save_path))
                     actions.append(dst_name)
             if actions:
