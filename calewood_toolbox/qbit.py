@@ -77,6 +77,23 @@ class QbitClient:
             return
         client.torrents_set_category(torrent_hashes=h, category=category)
 
+    def ensure_category(self, name: str, save_path: str | None = None) -> None:
+        client = self._client()
+        cat = str(name or "").strip()
+        if not cat:
+            return
+        sp = str(save_path or "").strip()
+        categories = client.torrents_categories()
+        existing = categories.get(cat) if isinstance(categories, dict) else None
+        if existing is None:
+            client.torrents_create_category(name=cat, save_path=sp or None)
+            return
+        current_path = ""
+        if isinstance(existing, dict):
+            current_path = str(existing.get("savePath") or existing.get("save_path") or "").strip()
+        if sp and current_path != sp:
+            client.torrents_edit_category(name=cat, save_path=sp)
+
     def set_location(self, torrent_hash: str, location: str) -> None:
         client = self._client()
         h = str(torrent_hash or "").strip()
