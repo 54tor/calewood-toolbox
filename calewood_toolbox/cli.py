@@ -437,13 +437,6 @@ def main(argv: list[str] | None = None) -> int:
         help="Filtre la source sur une catégorie exacte avant comparaison.",
     )
     qmirror.add_argument(
-        "--limit",
-        type=int,
-        default=10,
-        metavar="N",
-        help="Limite le nombre de torrents copiés (défaut: 10, 0 = illimité).",
-    )
-    qmirror.add_argument(
         "--batch-size",
         type=int,
         default=1,
@@ -827,7 +820,6 @@ def main(argv: list[str] | None = None) -> int:
         dst_category = str(ns.category or "").strip()
         start = bool(ns.start)
         skip_checking = bool(ns.skip_checking)
-        limit = int(ns.limit or 0)
         batch_size = max(1, int(ns.batch_size or 1))
         batch_sleep = max(0, int(ns.batch_sleep_seconds or 5))
 
@@ -870,8 +862,6 @@ def main(argv: list[str] | None = None) -> int:
             if actions:
                 copied += 1
                 missing_rows.append((h, cat, name[:60], ",".join(actions)))
-            if limit > 0 and copied >= limit:
-                break
 
             if not ns.dry_run and len(pending_batches) >= batch_size:
                 for dst_name, torrent_bytes, category, _, _ in pending_batches:
