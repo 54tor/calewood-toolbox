@@ -148,9 +148,9 @@ class QbitClient:
             torrent_files=bio,
             category=category,
             tags=tags,
-            paused=paused,
+            is_paused=paused,
             save_path=save_path,
-            skip_checking=bool(skip_checking),
+            is_skip_checking=bool(skip_checking),
         )
 
     def remove_trackers(self, torrent_hash: str, urls: str | list[str]) -> None:
