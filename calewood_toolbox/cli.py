@@ -867,10 +867,7 @@ def main(argv: list[str] | None = None) -> int:
                 if ns.dry_run:
                     actions.append(dst_name)
                 else:
-                    try:
-                        dst_clients[dst_name].ensure_category(category, save_path or None)
-                    except Exception:  # noqa: BLE001
-                        pass
+                    dst_clients[dst_name].ensure_category(category, save_path or None)
                     pending_batches.append((dst_name, torrent_bytes, category, h, name[:60], source_tags, save_path))
                     actions.append(dst_name)
             if actions:

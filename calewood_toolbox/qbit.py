@@ -91,7 +91,9 @@ class QbitClient:
         current_path = ""
         if isinstance(existing, dict):
             current_path = str(existing.get("savePath") or existing.get("save_path") or "").strip()
-        if sp and current_path != sp:
+        if sp and current_path and current_path != sp:
+            raise RuntimeError(f"Catégorie {cat!r} déjà créée avec un autre chemin: {current_path!r} != {sp!r}")
+        if sp and not current_path:
             client.torrents_edit_category(name=cat, save_path=sp)
 
     def set_location(self, torrent_hash: str, location: str) -> None:
