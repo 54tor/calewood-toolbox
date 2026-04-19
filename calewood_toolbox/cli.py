@@ -849,6 +849,14 @@ def main(argv: list[str] | None = None) -> int:
             h = str(t.get("hash", "")).strip().lower()
             if not h:
                 continue
+            try:
+                if float(t.get("progress") or 0.0) < 1.0:
+                    continue
+            except Exception:  # noqa: BLE001
+                continue
+            state = str(t.get("state") or "").strip().lower()
+            if "moving" in state:
+                continue
             if all(h in hashes for hashes in dst_hashes_by_name.values()):
                 continue
             name = str(t.get("name") or "")
