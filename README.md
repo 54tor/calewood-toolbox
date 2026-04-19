@@ -71,7 +71,7 @@ calewood-toolbox qbit dl-queue --qb-host box
 
 Champs optionnels par instance :
 
-- `mirror_category` : catégorie utilisée par `qbit mirror` à l'ajout dans la destination
+- `mirror_category` : catégorie utilisée par `qbit mirror` seulement si la source n'en a pas
 - `category_upload` : catégorie utilisée par les prises de fichiers Sharewood vers qBittorrent
 
 ## Commandes
@@ -127,7 +127,7 @@ calewood-toolbox uploads take-selected \
 - `qbit dl-queue --qb-host NAME` : stats file de téléchargement.
 - `qbit list --qb-host NAME` : liste tous les torrents d'une instance.
 - `qbit diff --src SRC --dst DST` : compare deux instances et affiche les torrents manquants de chaque côté.
-- `qbit mirror --src SRC --dst DST [--dst DST2 ...]` : copie les torrents présents dans la source mais absents dans une ou plusieurs destinations.
+- `qbit mirror --src SRC --dst DST [--dst DST2 ...]` : copie les torrents présents dans la source mais absents dans une ou plusieurs destinations, en reprenant la catégorie source par défaut.
   - défauts prudents : `--limit 10`, `--batch-size 1`, `--batch-sleep-seconds 5`
   - `--batch-size N` / `--batch-sleep-seconds S` : lisse les ajouts par lots pour éviter de saturer la destination
 - `qbit twins --qb-host NAME` : liste les torrents `cross-seed` ayant un tracker qui commence par `https://tracker.la-cale.space`.

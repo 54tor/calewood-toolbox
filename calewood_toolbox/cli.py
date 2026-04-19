@@ -412,7 +412,7 @@ def main(argv: list[str] | None = None) -> int:
     qmirror.add_argument(
         "--category",
         default="",
-        help="Catégorie à utiliser à l'ajout dans les destinations (défaut: catégorie `mirror_category` de chaque instance destination, sinon `calewood-mirror`).",
+        help="Catégorie à forcer à l'ajout dans les destinations. Vide = reprend la catégorie source.",
     )
     qmirror.add_argument(
         "--start",
@@ -858,7 +858,9 @@ def main(argv: list[str] | None = None) -> int:
             for dst_name, dst_client in dst_clients.items():
                 if h in dst_hashes_by_name[dst_name]:
                     continue
-                category = dst_category or _qbit_instance_category(dst_name, "mirror_category", "calewood-mirror")
+                category = dst_category or str(t.get("category") or "").strip() or _qbit_instance_category(
+                    dst_name, "mirror_category", "calewood-mirror"
+                )
                 if ns.dry_run:
                     actions.append(dst_name)
                 else:
