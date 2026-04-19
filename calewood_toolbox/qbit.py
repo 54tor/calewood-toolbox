@@ -94,7 +94,10 @@ class QbitClient:
         h = self.resolve_torrent_hash(torrent_hash)
         if not h:
             return b""
-        return bytes(client.torrents_export(torrent_hash=h))
+        try:
+            return bytes(client.torrents_export(torrent_hash=h))
+        except Exception:  # noqa: BLE001
+            return b""
 
     def delete_torrent(self, torrent_hash: str, *, delete_files: bool = True) -> None:
         client = self._client()
