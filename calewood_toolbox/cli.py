@@ -836,7 +836,7 @@ def main(argv: list[str] | None = None) -> int:
         copied = 0
         scanned = 0
         missing_rows: list[tuple[str, str, str, str]] = []
-        pending_batches: list[tuple[str, bytes, str, str, str]] = []
+        pending_batches: list[tuple[str, bytes, str, str, str, list[str]]] = []
         for t in src_torrents:
             scanned += 1
             if scanned == 1 or scanned % 250 == 0:
@@ -854,6 +854,8 @@ def main(argv: list[str] | None = None) -> int:
             torrent_bytes = src.export_torrent_file(h)
             if not torrent_bytes:
                 continue
+            raw_tags = str(t.get("tags") or "").strip()
+            source_tags = [part.strip() for part in re.split(r"[,\s]+", raw_tags) if part.strip()] if raw_tags else []
             actions: list[str] = []
             for dst_name, dst_client in dst_clients.items():
                 if h in dst_hashes_by_name[dst_name]:
@@ -864,17 +866,18 @@ def main(argv: list[str] | None = None) -> int:
                 if ns.dry_run:
                     actions.append(dst_name)
                 else:
-                    pending_batches.append((dst_name, torrent_bytes, category, h, name[:60]))
+                    pending_batches.append((dst_name, torrent_bytes, category, h, name[:60], source_tags))
                     actions.append(dst_name)
             if actions:
                 copied += 1
                 missing_rows.append((h, cat, name[:60], ",".join(actions)))
 
             if not ns.dry_run and len(pending_batches) >= batch_size:
-                for dst_name, torrent_bytes, category, _, _ in pending_batches:
+                for dst_name, torrent_bytes, category, _, _, source_tags in pending_batches:
                     dst_clients[dst_name].add_torrent_file(
                         torrent_bytes,
                         category=category,
+                        tags=source_tags,
                         start=start,
                         skip_checking=skip_checking,
                     )
@@ -883,13 +886,14 @@ def main(argv: list[str] | None = None) -> int:
                     time.sleep(batch_sleep)
 
         if not ns.dry_run and pending_batches:
-            for dst_name, torrent_bytes, category, _, _ in pending_batches:
+            for dst_name, torrent_bytes, category, _, _, source_tags in pending_batches:
                 dst_clients[dst_name].add_torrent_file(
                     torrent_bytes,
                     category=category,
+                    tags=source_tags,
                     start=start,
-                skip_checking=skip_checking,
-            )
+                    skip_checking=skip_checking,
+                )
 
         print(
             f"mirror progress: scanned={scanned}/{len(src_torrents)} copied={copied} pending=0",

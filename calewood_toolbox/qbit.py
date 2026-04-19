@@ -64,6 +64,12 @@ class QbitClient:
         # qBittorrent uses "tags" (sometimes called labels in UI).
         client.torrents_add_tags(tags=tag, torrent_hashes=torrent_hash)
 
+    def add_tags(self, torrent_hash: str, tags: list[str]) -> None:
+        clean = [str(t).strip() for t in (tags or []) if str(t).strip()]
+        if not clean:
+            return
+        self.add_tag(torrent_hash, ",".join(clean))
+
     def set_category(self, torrent_hash: str, category: str) -> None:
         client = self._client()
         h = str(torrent_hash or "").strip()
@@ -111,6 +117,7 @@ class QbitClient:
         torrent_bytes: bytes,
         *,
         category: str | None = None,
+        tags: str | list[str] | None = None,
         start: bool = True,
         save_path: str | None = None,
         skip_checking: bool = False,
@@ -121,6 +128,7 @@ class QbitClient:
         client.torrents_add(
             torrent_files=bio,
             category=category,
+            tags=tags,
             paused=paused,
             save_path=save_path,
             skip_checking=bool(skip_checking),
